@@ -1,0 +1,13 @@
+langgraph
+langchain-core
+anthropic
+fastapi
+uvicorn
+sqlalchemy
+pydantic>=2,<3
+pytest
+pyflakes
+tree-sitter
+tree-sitter-python
+ripgrepy
+python-dotenv
