@@ -5,3 +5,4 @@ __pycache__/
 .pytest_cache/
 *.pyc
 orchestrator_runs.db
+docs/engineering*.md
