@@ -20,7 +20,7 @@ Set `.env`:
 ```env
 MODEL_PROVIDER=openrouter
 OPENROUTER_API_KEY=<your_openrouter_key>
-OPENROUTER_MODEL=anthropic/claude-3.5-sonnet
+OPENROUTER_MODEL=openai/gpt-4o-mini
 DEMO_MODE=false
 ```
 
