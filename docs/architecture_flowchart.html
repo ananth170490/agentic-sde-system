@@ -1,0 +1,130 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Agentic Software Engineering System — Architecture Flow</title>
+<style>
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+    max-width: 960px;
+    margin: 0 auto;
+    padding: 32px 24px 64px;
+    color: #24292f;
+    background: #ffffff;
+    line-height: 1.6;
+  }
+  h1 { font-size: 22px; font-weight: 600; margin-bottom: 4px; }
+  .subtitle { color: #57606a; font-size: 14px; margin-bottom: 28px; }
+  #diagram {
+    border: 1px solid #d0d7de;
+    border-radius: 10px;
+    padding: 16px;
+    overflow-x: auto;
+    background: #fafbfc;
+    margin-bottom: 36px;
+  }
+  h2 { font-size: 17px; font-weight: 600; margin-top: 28px; margin-bottom: 8px; border-bottom: 1px solid #eaeef2; padding-bottom: 6px; }
+  h3 { font-size: 15px; font-weight: 600; margin-top: 18px; margin-bottom: 6px; }
+  p, li { font-size: 14.5px; color: #24292f; }
+  ul { margin-top: 4px; padding-left: 22px; }
+  code { background: #f0f2f4; padding: 1px 5px; border-radius: 4px; font-size: 13px; }
+  .stage-table { width: 100%; border-collapse: collapse; margin-top: 8px; font-size: 13.5px; }
+  .stage-table th, .stage-table td { border: 1px solid #d0d7de; padding: 6px 10px; text-align: left; vertical-align: top; }
+  .stage-table th { background: #f6f8fa; }
+  .legend { font-size: 13px; color: #57606a; margin-top: 6px; }
+</style>
+</head>
+<body>
+
+<h1>Agentic software engineering system — architecture flow</h1>
+<div class="subtitle">Requirement intake through to a completed, human-approved engineering outcome</div>
+
+<div id="diagram">
+<pre class="mermaid">
+flowchart TD
+  Start([Requirement submitted]) --> Init[Initialize run state]
+  Init --> Intake[Intake agent]
+  Intake --> Ambig{Ambiguity high?}
+
+  Ambig -- Yes --> Clarify[Clarify gate]
+  Clarify --> ClarifyWait[[Await human clarification]]
+  ClarifyWait --> Route
+  Ambig -- No --> Route{Requirement type}
+
+  Route -- Brownfield --> Codebase[Codebase reasoning agent]
+  Route -- Greenfield / clarified --> Architect
+  Codebase --> Architect[Architect agent]
+
+  Architect --> Decompose[Task decomposer agent]
+  Decompose --> PlanGate[Plan approval gate]
+  PlanGate --> PlanWait[[Await plan approval]]
+  PlanWait --> Execute[Execute task DAG]
+
+  Execute --> Loop{Next runnable task?}
+  Loop -- Yes --> CodeGen[CodeGen agent]
+  CodeGen --> TestGen[TestGen agent]
+  TestGen --> Validate[Validation agent]
+  Validate --> Pass{Validation passed?}
+  Pass -- No --> RetryCheck{Retries left?}
+  RetryCheck -- Yes --> Repair[Repair from feedback]
+  Repair --> CodeGen
+  RetryCheck -- No --> Blocked[[Pause: human intervention]]
+  Pass -- Yes --> Persist[Persist task result]
+  Persist --> Loop
+  Loop -- No --> RiskDocs[Risk and docs agent]
+
+  RiskDocs --> MergeGate[Merge approval gate]
+  MergeGate --> MergeWait[[Await merge approval]]
+  MergeWait --> Finalize[Finalize run]
+  Finalize --> End([Completed, artifacts delivered])
+
+  classDef gate fill:#fff3cd,stroke:#c9922a,color:#5c4400;
+  classDef wait fill:#e7e9ef,stroke:#7a7f8c,color:#2c2f36,stroke-dasharray: 3 2;
+  classDef agent fill:#e6f1fb,stroke:#378ADD,color:#0C447C;
+  classDef decision fill:#fbeaf0,stroke:#D4537E,color:#4B1528;
+  classDef terminal fill:#eaf3de,stroke:#639922,color:#173404;
+  classDef risk fill:#fcebeb,stroke:#E24B4A,color:#501313;
+
+  class Start,End terminal
+  class Intake,Codebase,Architect,Decompose,CodeGen,TestGen,Validate,Repair,RiskDocs,Init,Persist,Execute agent
+  class Ambig,Route,Loop,Pass,RetryCheck decision
+  class Clarify,PlanGate,MergeGate gate
+  class ClarifyWait,PlanWait,MergeWait,Blocked wait
+</pre>
+</div>
+<div class="legend">Blue = agent step · pink = decision point · amber = human approval gate · gray dashed = paused awaiting human input · green = start/end</div>
+
+<h2>Workflow explanation</h2>
+
+<p>The system turns one plain-English requirement into a validated, human-approved engineering outcome by moving a single shared <code>RunState</code> object through a fixed sequence of agents, with three points where a human must sign off before the run continues.</p>
+
+<h3>1. Intake and ambiguity check</h3>
+<p>The requirement is parsed into explicit requirements, implicit requirements, and open ambiguities, each carrying an ambiguity score. If that score is high, the run pauses at the <strong>clarify gate</strong> and waits for a human to answer specific questions before continuing — the system never guesses its way past a genuinely unclear requirement.</p>
+
+<h3>2. Context-aware design</h3>
+<p>Once the requirement is unambiguous, brownfield requests first go through the <strong>codebase reasoning agent</strong>, which indexes the existing repository and identifies impacted files and modules. Every request — brownfield or greenfield — then reaches the <strong>architect agent</strong>, which produces the components, data model, API contract, and trade-offs.</p>
+
+<h3>3. Planning and the first approval gate</h3>
+<p>The <strong>task decomposer agent</strong> turns the design into a dependency-aware task DAG, with each task's file ownership defined up front to prevent collisions. This plan is shown to a human at the <strong>plan approval gate</strong> — execution does not begin until it's approved.</p>
+
+<h3>4. Execution loop, with built-in recovery</h3>
+<p>Approved tasks run in dependency order. Each task passes through <strong>CodeGen → TestGen → Validation</strong>, where validation actually executes pytest, py_compile, and static analysis rather than trusting a model's self-report. A failed task is <strong>repaired</strong> using the validation feedback and retried, up to a fixed retry limit — only after those retries are exhausted does the run pause for human intervention on that specific task. This loop is what gives the system real error handling and recovery, not just linear execution.</p>
+
+<h3>5. Risk synthesis and the second and third gates</h3>
+<p>Once every task is done, the <strong>risk and docs agent</strong> compiles risks, trade-offs, and a structured engineering summary. The run then pauses at the <strong>merge approval gate</strong> for a final human sign-off before being marked complete, with the full RunState persisted at every step so a crashed run can resume from wherever it left off rather than starting over.</p>
+
+<table class="stage-table">
+<tr><th>Phase</th><th>Owner</th><th>Human checkpoint?</th></tr>
+<tr><td>Intake &amp; clarification</td><td>Intake agent</td><td>Yes — clarify gate (conditional)</td></tr>
+<tr><td>Design</td><td>Codebase reasoning + architect agents</td><td>No</td></tr>
+<tr><td>Planning</td><td>Task decomposer agent</td><td>Yes — plan approval gate</td></tr>
+<tr><td>Execution &amp; recovery</td><td>CodeGen, TestGen, Validation agents</td><td>Only if retries exhausted</td></tr>
+<tr><td>Wrap-up</td><td>Risk &amp; docs agent</td><td>Yes — merge approval gate</td></tr>
+</table>
+
+<script type="module">
+  import mermaid from "https://cdn.jsdelivr.net/npm/mermaid@11/dist/mermaid.esm.min.mjs";
+  mermaid.initialize({ startOnLoad: true, theme: "neutral", securityLevel: "loose" });
+</script>
+</body>
+</html>
