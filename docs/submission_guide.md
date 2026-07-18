@@ -1,4 +1,4 @@
-## Opening Summary
+## Summary
 
 This project is an agentic software engineering orchestrator designed to take a plain-English requirement and move it through the full software delivery lifecycle.
 
