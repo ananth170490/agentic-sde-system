@@ -635,6 +635,7 @@ This section provides clear, step-by-step instructions to run and evaluate the s
 
 From terminal:
 
+Clone this repo and save in the local system
 cd "/Users/ananth/Desktop/agentic-sde-system"
 
 ### 3. Create and Activate Virtual Environment
