@@ -52,7 +52,7 @@ This script submits the URL shortener requirement, prints gate review payloads, 
 
 Primary interviewer-facing KT document:
 
-- `docs/submission_ready_5min_kt.md`
+- `docs/submission_guide.md`
 
 This KT includes:
 
