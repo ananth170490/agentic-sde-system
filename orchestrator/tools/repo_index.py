@@ -32,7 +32,11 @@ class RepoIndex:
 
 		for rel_path, abs_path in rel_paths.items():
 			source = abs_path.read_text(encoding="utf-8", errors="ignore")
-			tree = ast.parse(source)
+			try:
+				tree = ast.parse(source)
+			except SyntaxError:
+				# Brownfield indexing should be resilient to malformed files in the repo.
+				continue
 
 			symbols: list[SymbolInfo] = []
 			imports: set[str] = set()

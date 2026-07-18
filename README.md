@@ -6,57 +6,78 @@ Agentic software engineering orchestrator that converts a natural-language requi
 - architecture design
 - dependency-aware task DAG
 - generated code and tests
-- validation and bounded repair loops
-- risk documentation and final summary
+- validation with bounded repair loops
+- risk documentation and final engineering summary
 
-Human approval gates are built into the workflow so generation is controlled, not fully autonomous.
+Human approval gates are built into the workflow so generation is controlled, auditable, and resumable.
 
-## What This Project Does
+## What This Project Delivers
 
 Given a requirement like:
 
 > Build a scalable URL shortener service with APIs, persistence, and analytics.
 
-the system runs a full engineering pipeline:
+the system executes a full SDLC-style pipeline:
 
 1. Intake and requirement structuring
 2. Clarification gate for ambiguous input
-3. Architecture design
-4. Task decomposition into a DAG
-5. Plan approval gate
-6. Code + test generation per task
-7. Validation + repair retries
-8. Risk documentation
-9. Merge approval gate
-10. Finalization
+3. Brownfield codebase reasoning when needed
+4. Architecture design
+5. Task DAG decomposition
+6. Plan approval gate
+7. Code + test generation per task
+8. Validation + bounded repair retries
+9. Risk documentation and engineering summary
+10. Merge approval gate and finalization
 
 ## Repository Layout
 
-- `orchestrator/`: workflow graph, agents, API, tools, and gates
-- `tests/`: unit and integration tests for agents, graph, API, and tools
-- `examples/`: runnable greenfield, brownfield, and ambiguous demonstrations
-- `generated_projects/`: generated artifacts from sample runs
-- `docs/`: architecture docs, demo checklist, and submission material
+- `orchestrator/`: graph, agents, API, tools, and gates
+- `tests/`: unit and integration coverage
+- `examples/`: greenfield, brownfield, and ambiguous runs
+- `generated_projects/`: generated artifacts from demo runs
+- `docs/`: architecture, guide, checklist, and submission material
 
 ## Prerequisites
 
 - Python 3.11+
-- Docker + Docker Compose (recommended path)
+- Docker + Docker Compose (recommended)
 
 ## Configuration
 
-Create a `.env` file in the repo root (or export env vars).
+Create `.env` in repo root.
 
-Core options:
+### OpenRouter (recommended for live demos)
 
-- `MODEL_PROVIDER=anthropic` (default)
-- `MODEL_PROVIDER=ollama`
-- `MODEL_PROVIDER=scripted` (deterministic demo-friendly mode)
-- `DEMO_MODE=true` (deterministic API responses for live demos)
+```env
+MODEL_PROVIDER=openrouter
+OPENROUTER_API_KEY=<your_openrouter_key>
+OPENROUTER_MODEL=anthropic/claude-3.5-sonnet
+```
 
-If using Anthropic:
+Optional provider metadata:
 
-- `ANTHROPIC_API_KEY=<your_key>`
+```env
+OPENROUTER_SITE_URL=http://localhost:8000
+OPENROUTER_APP_NAME=agentic-sde-system
+```
+
+### Other providers
+
+```env
+MODEL_PROVIDER=anthropic
+ANTHROPIC_API_KEY=<your_key>
+```
+
+```env
+MODEL_PROVIDER=ollama
+```
+
+### Deterministic demo mode
+
+```env
+DEMO_MODE=true
+```
 
 ## Quick Start (Docker)
 
@@ -64,11 +85,11 @@ If using Anthropic:
 docker compose up --build -d
 ```
 
-API is available at:
+Endpoints:
 
-- `http://localhost:8000/docs` (Swagger UI)
-- `http://localhost:8000/openapi.json` (OpenAPI spec)
-- `http://localhost:8000/live-demo` (one-click live demo runner with approval/reject popups)
+- `http://localhost:8000/docs` (Swagger)
+- `http://localhost:8000/openapi.json` (OpenAPI)
+- `http://localhost:8000/live-demo` (one-click runner)
 
 Stop services:
 
@@ -83,89 +104,137 @@ pip install -r requirements.txt
 uvicorn orchestrator.api.main:app --reload
 ```
 
-## Live Demo UI (Auto Progress + Human Gate Popups)
+## Core API Endpoints
 
-Use this page for interview/demo flow without manually stepping each phase in Swagger:
+- `POST /requirements`
+- `GET /runs/{run_id}`
+- `POST /runs/{run_id}/approve`
+- `POST /runs/{run_id}/reject`
 
-- `http://localhost:8000/live-demo`
+## Run the Example Scenarios
 
-How it behaves:
-
-1. Submit requirement once
-2. Workflow auto-advances
-3. At each gate, browser popup appears
-4. Choose approve or reject
-5. Execution log and final status are shown on-screen
-
-This is intended for fast demonstrations of human-in-the-loop orchestration.
-
-## API Endpoints
-
-- `POST /requirements`: create and start a run
-- `GET /runs/{run_id}`: inspect persisted run state
-- `POST /runs/{run_id}/approve`: approve and resume from gate
-- `POST /runs/{run_id}/reject`: reject and end run
-
-## Run the Mandatory Greenfield Example
+Greenfield (mandatory URL shortener):
 
 ```bash
 python examples/greenfield_run/run_url_shortener.py
 ```
 
-This script:
-
-- submits the URL shortener requirement
-- prints review payloads at gates
-- auto-approves for scripted demo flow
-- copies generated artifacts into `generated_projects/url-shortener/`
-- runs generated project tests
-
-## Other Example Runs
-
-Ambiguous requirement flow:
-
-```bash
-python examples/ambiguous_run/run_ambiguous.py
-```
-
-Brownfield enhancement flow:
+Brownfield enhancement:
 
 ```bash
 python examples/brownfield_run/run_add_auth.py
 ```
 
-## Testing
-
-Run full test suite:
+Ambiguous requirement:
 
 ```bash
-pytest
+python examples/ambiguous_run/run_ambiguous.py
 ```
 
-Testing strategy:
+## Testing
 
-- unit tests for agents/tools with deterministic fake provider responses
-- integration tests for graph transitions, pause/resume, and completion
-- API tests for submission, approval, and end-to-end lifecycle behavior
+Run full suite:
 
-## Architecture Notes
+```bash
+pytest -q
+```
 
-Core orchestration lives in a phase-routed graph with persistent state:
+Latest validated baseline:
 
-- graph: `orchestrator/graph.py`
-- state model/store: `orchestrator/state.py`
-- human gates: `orchestrator/gates/human_approval.py`
-- API surface: `orchestrator/api/main.py`
+- `18 passed, 1 warning`
 
-## Known Limitations
+## Engineering-Grade Output Evidence
 
-- execution sandboxing is subprocess-based, not full container isolation per task
-- model quality influences non-scripted generation quality
-- brownfield impact analysis uses AST/import/grep heuristics (not embeddings)
+### Greenfield Run Evidence
+
+- Run ID: `3751c9b4-d1a6-4a0d-95b1-8f06d23b1d6d`
+- Status: `completed`
+- Category: `greenfield`
+- Tasks: `11/11` completed
+- Validations: `11/11` passed
+
+Output summary excerpt:
+
+```text
+## Implementation Plan and Rationale
+The run executed the intake, planning, and DAG workflow with automated gating.
+
+## Generated Artifacts
+- analytics/analytics_service.js
+- api/analytics_api.js
+- api/url_shortener_api.js
+- caching/redis_setup.js
+- docs/api_documentation.md
+- monitoring/logging_setup.js
+- persistence/url_repository.js
+- schemas/url_analytics_schema.sql
+- tests/analytics_api.test.js
+- tests/integration_tests.js
+- tests/url_shortener_api.test.js
+```
+
+### Brownfield Run Evidence
+
+- Run ID: `4944bf07-2468-4bbc-b07c-d112a29cd79f`
+- Status: `completed`
+- Category: `brownfield`
+- Tasks: `7/7` completed
+- Validations: `7/7` passed
+
+Output summary excerpt:
+
+```text
+## Implementation Plan and Rationale
+The run executed the intake, planning, and DAG workflow with automated gating.
+
+## Generated Artifacts
+- docs/authentication_and_rbac.md
+- src/middleware/jwtAuth.js
+- src/rbac/roleManager.js
+- src/routes/fixtures.js
+- tests/integration/fixtures.test.js
+- tests/unit/jwtAuth.test.js
+- tests/unit/roleManager.test.js
+```
+
+### Ambiguous Run Evidence (OpenRouter Quota/Provider Fallback)
+
+- Run ID: `f64e1021-6402-4a2d-a3dd-f2bd098d1aad`
+- Status: `completed`
+- Category: `ambiguous`
+- Tasks: `0/0` completed (safe fallback path)
+- Validations: `0/0` (no generated tasks)
+
+Output summary excerpt:
+
+```text
+## Implementation Plan and Rationale
+Provider fallback used because the model provider request was blocked by quota/billing limits. Check provider credits and retry the run.
+
+## Generated Artifacts
+- No artifacts recorded
+
+## Risks, Trade-offs, and Validation Approach
+- Provider fallback used because the model provider request was blocked by quota/billing limits. Check provider credits and retry the run.
+
+## Assumptions and Limitations
+- Fallback output was synthesized from schema defaults.
+```
+
+Note: raw upstream HTTP messages are intentionally sanitized from reviewer-facing summaries.
+
+## Key Architecture References
+
+- `orchestrator/graph.py`
+- `orchestrator/state.py`
+- `orchestrator/gates/human_approval.py`
+- `orchestrator/tools/model_provider.py`
 
 ## Documentation
 
-- `docs/submission_guide.md`: review-ready walkthrough and knowledge transfer guide
-- `docs/live_demo_checklist.md`: Live demo scripts
-- `docs/submission_package.md`: assignment mapping and implementation summary
-- `docs/demo_mode_and_production_readiness.md`: demo mode and production hardening notes
+- `docs/architecture.md`
+- `docs/guide.md`
+- `docs/live_demo_checklist.md`
+- `docs/demo_mode_and_production_readiness.md`
+- `docs/submission_guide.md`
+- `docs/submission_package.md`

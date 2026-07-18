@@ -182,6 +182,8 @@ class OrchestrationGraph:
 		return "codebase_reasoning"
 
 	def _route_after_execute_dag(self, state: RunState) -> str:
+		if state.status == "rejected":
+			return "wait"
 		if state.awaiting_human:
 			return "wait"
 		return "risk_docs"
@@ -261,64 +263,94 @@ class OrchestrationGraph:
 		state.awaiting_human = False
 		state.human_feedback = None
 		state.review_payload = None
-		project_dir = self._project_dir_for_requirement(state.requirement.raw_text)
+		project_dir = self._project_dir_for_run(state.run_id, state.requirement.raw_text)
 
 		for batch in state.dag.topological_batches():
 			for task in batch:
 				if task.status == TaskStatus.DONE:
 					continue
 				if task.status == TaskStatus.FAILED:
-					state.awaiting_human = True
-					state.status = "awaiting_human"
-					state.final_summary = f"Execution blocked by failed task: {task.id}"
-					state.current_phase = "execute_dag"
-					return self._persist(state)
+					return self._mark_run_failed(
+						state=state,
+						task=task,
+						reason=f"Task already marked failed before execution: {task.id}",
+						validation=state.validations[-1] if state.validations else None,
+					)
 
-				dependency_context = self._dependency_context(task_id=task.id, state=state)
-				generated_files = self.code_gen_agent.run(
-					task=task,
-					spec=state.requirement,
-					design=state.design,
-					context_from_dependencies=dependency_context,
-					model=self.model,
-					project_dir=project_dir,
-				)
-				self.test_gen_agent.run(
-					task=task,
-					generated_files=generated_files,
-					spec=state.requirement,
-					model=self.model,
-					project_dir=project_dir,
-				)
+				try:
+					dependency_context = self._dependency_context(task_id=task.id, state=state)
+					generated_files = self.code_gen_agent.run(
+						task=task,
+						spec=state.requirement,
+						design=state.design,
+						context_from_dependencies=dependency_context,
+						model=self.model,
+						project_dir=project_dir,
+					)
+					try:
+						self.test_gen_agent.run(
+							task=task,
+							generated_files=generated_files,
+							spec=state.requirement,
+							model=self.model,
+							project_dir=project_dir,
+						)
+					except ValueError as err:
+						task.output_summary = f"Test generation warning: {err}"
 
-				validation = self.validator_agent.run(task=task, project_dir=project_dir, sandbox=self.sandbox_runner)
-				state.validations.append(validation)
+					validation = self.validator_agent.run(task=task, project_dir=project_dir, sandbox=self.sandbox_runner)
+					state.validations.append(validation)
+				except Exception as err:
+					task.status = TaskStatus.FAILED
+					task.output_summary = f"Execution exception: {err}"
+					return self._mark_run_failed(
+						state=state,
+						task=task,
+						reason=f"Task {task.id} failed due to execution error: {err}",
+						validation=state.validations[-1] if state.validations else None,
+					)
 
 				while not validation.passed:
 					if task.retry_count >= 3:
 						task.status = TaskStatus.FAILED
-						state.awaiting_human = True
-						state.status = "awaiting_human"
-						state.final_summary = f"Execution blocked by task {task.id}: {validation.issues}"
-						return self._persist(state)
+						task.output_summary = f"Validation failed after retries: {validation.issues}"
+						return self._mark_run_failed(
+							state=state,
+							task=task,
+							reason=f"Validation failed after 3 retries for task {task.id}: {validation.issues}",
+							validation=validation,
+						)
 
 					task.retry_count += 1
-					repaired_files = self.code_gen_agent.repair(
-						task=task,
-						validation_result=validation,
-						spec=state.requirement,
-						design=state.design,
-						model=self.model,
-					)
+					try:
+						repaired_files = self.code_gen_agent.repair(
+							task=task,
+							validation_result=validation,
+							spec=state.requirement,
+							design=state.design,
+							model=self.model,
+						)
+					except Exception as err:
+						task.status = TaskStatus.FAILED
+						task.output_summary = f"Repair exception: {err}"
+						return self._mark_run_failed(
+							state=state,
+							task=task,
+							reason=f"Repair failed for task {task.id}: {err}",
+							validation=validation,
+						)
 					self._write_files(project_dir=project_dir, files=repaired_files)
 					generated_files.update(repaired_files)
-					self.test_gen_agent.run(
-						task=task,
-						generated_files=generated_files,
-						spec=state.requirement,
-						model=self.model,
-						project_dir=project_dir,
-					)
+					try:
+						self.test_gen_agent.run(
+							task=task,
+							generated_files=generated_files,
+							spec=state.requirement,
+							model=self.model,
+							project_dir=project_dir,
+						)
+					except ValueError as err:
+						task.output_summary = f"Test generation warning during repair: {err}"
 
 					validation = self.validator_agent.run(task=task, project_dir=project_dir, sandbox=self.sandbox_runner)
 					state.validations.append(validation)
@@ -331,11 +363,75 @@ class OrchestrationGraph:
 		state.awaiting_human = False
 		return self._persist(state)
 
+	def _mark_run_failed(self, state: RunState, task, reason: str, validation: ValidationResult | None = None) -> RunState:
+		state.current_phase = "execute_dag"
+		state.status = "rejected"
+		state.awaiting_human = False
+		state.review_payload = None
+		state.rejection_reason = reason
+
+		task_id = getattr(task, "id", "unknown-task")
+		task_title = getattr(task, "title", "Unknown task")
+		task_details = getattr(task, "output_summary", None) or reason
+		validation_tail = ""
+		if validation is not None and validation.logs:
+			validation_tail = "\n\nRecent Validation Logs (tail):\n" + "\n".join(validation.logs.splitlines()[-20:])
+		state.final_summary = (
+			"## Execution Halted During DAG Phase\n"
+			f"- Failed Task: {task_id} ({task_title})\n"
+			f"- Failure Reason: {reason}\n\n"
+			"## Engineering Assessment\n"
+			"The run reached execution but failed on a task that could not be auto-repaired within retry limits.\n"
+			"No further autonomous approvals can progress this run.\n\n"
+			"## Actionable Next Steps\n"
+			"1. Review generated files and test outputs for the failed task.\n"
+			"2. Adjust task owned_files/contracts or prompt constraints for that task.\n"
+			"3. Re-run from intake with the corrected task boundaries.\n\n"
+			f"## Failure Context\n{task_details}{validation_tail}"
+		)
+		return self._persist(state)
+
 	def _node_risk_docs(self, state: RunState) -> RunState:
 		state.current_phase = "risk_docs"
 		state.status = "running"
-		state = self.risk_docs_agent.run(state, self.model)
+		try:
+			state = self.risk_docs_agent.run(state, self.model)
+		except Exception as err:
+			state.risks = state.risks or [f"Risk documentation generation fallback triggered: {err}"]
+			state.final_summary = self._fallback_engineering_summary(state, str(err))
 		return self._persist(state)
+
+	def _fallback_engineering_summary(self, state: RunState, error_text: str) -> str:
+		artifacts: list[str] = []
+		if state.dag is not None:
+			for task in state.dag.tasks:
+				artifacts.extend(task.owned_files)
+		artifacts = sorted(set(artifacts))[:20]
+
+		validation_issues: list[str] = []
+		for result in state.validations:
+			validation_issues.extend(result.issues)
+
+		artifacts_md = "\n".join(f"- {path}" for path in artifacts) or "- No artifacts recorded"
+		risk_items = state.risks or ["Model output formatting instability under strict header constraints"]
+		risk_md = "\n".join(f"- {risk}" for risk in risk_items)
+		issues_md = "\n".join(f"- {issue}" for issue in sorted(set(validation_issues))[:10]) or "- No explicit validation issues captured"
+
+		return (
+			"## Implementation Plan and Rationale\n"
+			"The run executed the intake, planning, and DAG workflow with automated gating. "
+			"A fallback summary was generated because risk documentation formatting failed at runtime.\n\n"
+			"## Generated Artifacts\n"
+			f"{artifacts_md}\n\n"
+			"## Risks, Trade-offs, and Validation Approach\n"
+			f"{risk_md}\n"
+			"Validation Issues Observed:\n"
+			f"{issues_md}\n\n"
+			"## Assumptions and Limitations\n"
+			"- Assumes model outputs may occasionally violate strict formatting contracts.\n"
+			"- Uses fallback summary synthesis to preserve run continuity.\n"
+			f"- Original risk_docs error: {error_text}\n"
+		)
 
 	def _node_merge_approval_gate(self, state: RunState) -> RunState:
 		if state.human_feedback and state.human_feedback.strip():
@@ -374,9 +470,9 @@ class OrchestrationGraph:
 			parts.append(f"{dep_id}: {dep_task.output_summary or ''}")
 		return "\n".join(parts)
 
-	def _project_dir_for_requirement(self, requirement_text: str) -> str:
+	def _project_dir_for_run(self, run_id: str, requirement_text: str) -> str:
 		slug = self._slugify(requirement_text)
-		path = (self.generated_root / slug).resolve()
+		path = (self.generated_root / f"{slug}-{run_id[:8]}").resolve()
 		path.mkdir(parents=True, exist_ok=True)
 		return str(path)
 

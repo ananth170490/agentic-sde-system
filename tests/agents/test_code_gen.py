@@ -51,3 +51,33 @@ def test_code_gen_rejects_writes_outside_owned_files(tmp_path) -> None:
             model=model,
             project_dir=str(tmp_path / "generated"),
         )
+
+
+def test_code_gen_sanitizes_placeholder_python_content(tmp_path) -> None:
+    task = Task(
+        id="auth-001",
+        title="Design JWT middleware",
+        description="Create middleware module",
+        owned_files=["src/middleware/jwt_auth.py"],
+    )
+    model = FakeModelProvider(
+        canned_response={
+            "files": {
+                "src/middleware/jwt_auth.py": "updated",
+            }
+        }
+    )
+
+    agent = CodeGenAgent()
+    files = agent.run(
+        task=task,
+        spec=_spec(),
+        design=_design(),
+        context_from_dependencies="",
+        model=model,
+        project_dir=str(tmp_path / "generated"),
+    )
+
+    generated = files["src/middleware/jwt_auth.py"]
+    assert "Auto-generated placeholder module" in generated
+    assert "Task: auth-001 - Design JWT middleware" in generated

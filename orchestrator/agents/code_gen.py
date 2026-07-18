@@ -44,6 +44,7 @@ class CodeGenAgent:
 			user_prompt=user_prompt,
 			response_model=_GeneratedFilesResponse,
 		)
+		response.files = self._sanitize_files(task=task, files=response.files)
 
 		self._ensure_owned_files_only(task=task, files=response.files)
 
@@ -80,8 +81,49 @@ class CodeGenAgent:
 			user_prompt=user_prompt,
 			response_model=_GeneratedFilesResponse,
 		)
+		response.files = self._sanitize_files(task=task, files=response.files)
 		self._ensure_owned_files_only(task=task, files=response.files)
 		return response.files
+
+	def _sanitize_files(self, task: Task, files: dict[str, str]) -> dict[str, str]:
+		sanitized: dict[str, str] = {}
+		for rel_path, content in files.items():
+			sanitized[rel_path] = self._sanitize_file_content(task=task, rel_path=rel_path, content=content)
+		return sanitized
+
+	def _sanitize_file_content(self, task: Task, rel_path: str, content: str) -> str:
+		normalized = self._normalize_rel_path(rel_path)
+		text = content or ""
+		extracted = self._extract_code_block(text)
+		if extracted is not None:
+			text = extracted
+
+		if normalized.endswith(".py"):
+			candidate = text.strip()
+			if not candidate or self._looks_like_placeholder_text(candidate):
+				return (
+					'"""Auto-generated placeholder module.\n\n'
+					f'Task: {task.id} - {task.title}\n'
+					'"""\n\n'
+					"# TODO: replace placeholder with implementation details from a follow-up generation pass.\n"
+				)
+
+		return text
+
+	def _extract_code_block(self, text: str) -> str | None:
+		match = re.search(r"```(?:[a-zA-Z0-9_+-]+)?\\n([\\s\\S]*?)\\n```", text)
+		if match:
+			return match.group(1).strip() + "\n"
+		return None
+
+	def _looks_like_placeholder_text(self, text: str) -> bool:
+		normalized = text.strip().lower()
+		if normalized in {"updated", "done", "n/a", "na", "todo", "tbd", "placeholder"}:
+			return True
+		# Single short non-code token should not be treated as valid source.
+		if "\n" not in normalized and len(normalized.split()) <= 3 and all(ch.isalnum() or ch in "-_" for ch in normalized):
+			return True
+		return False
 
 	def _ensure_owned_files_only(self, task: Task, files: dict[str, str]) -> None:
 		normalized_allowed = {self._normalize_rel_path(path) for path in task.owned_files}

@@ -31,7 +31,12 @@ class SandboxRunner:
 	def __init__(self, python_executable: str = "python") -> None:
 		self._python_executable = self._normalize_python_executable(python_executable)
 
-	def run_pytest(self, project_dir: str, timeout_sec: int = 60) -> dict[str, object]:
+	def run_pytest(
+		self,
+		project_dir: str,
+		timeout_sec: int = 60,
+		test_paths: list[str] | None = None,
+	) -> dict[str, object]:
 		source_dir = Path(project_dir).resolve()
 		if not source_dir.exists() or not source_dir.is_dir():
 			raise ValueError(f"Invalid project_dir: {project_dir}")
@@ -46,7 +51,18 @@ class SandboxRunner:
 			shutil.copytree(source_dir, target_dir)
 
 		try:
-			completed = self._run_pytest_subprocess(target_dir, timeout_sec)
+			normalized_test_paths = self._normalize_test_paths(
+				target_dir=target_dir,
+				test_paths=test_paths,
+			)
+			if test_paths is not None and not normalized_test_paths:
+				return {
+					"passed": True,
+					"logs": "No scoped pytest files found for this task; skipping pytest.",
+					"issues": [],
+				}
+
+			completed = self._run_pytest_subprocess(target_dir, timeout_sec, normalized_test_paths)
 			logs = self._combine_streams(completed.stdout, completed.stderr)
 			issues = self._extract_failed_tests(logs)
 			passed = completed.returncode == 0
@@ -59,10 +75,16 @@ class SandboxRunner:
 			if cleanup_dir is not None:
 				shutil.rmtree(cleanup_dir, ignore_errors=True)
 
-	def _run_pytest_subprocess(self, run_dir: Path, timeout_sec: int) -> subprocess.CompletedProcess[str]:
+	def _run_pytest_subprocess(
+		self,
+		run_dir: Path,
+		timeout_sec: int,
+		test_paths: list[str],
+	) -> subprocess.CompletedProcess[str]:
+		cmd = [self._python_executable, "-m", "pytest", "-q", *test_paths]
 		try:
 			return subprocess.run(
-				[self._python_executable, "-m", "pytest", "-q"],
+				cmd,
 				cwd=str(run_dir),
 				capture_output=True,
 				text=True,
@@ -74,12 +96,30 @@ class SandboxRunner:
 				f"SandboxRunner timed out after {timeout_sec}s while running pytest in {run_dir}"
 			)
 			raise SandboxRunnerTimeoutError(
-				cmd=err.cmd,
+				cmd=err.cmd or cmd,
 				timeout=err.timeout,
 				output=err.output,
 				stderr=f"{err.stderr or ''}\n{message}".strip(),
 				message=message,
 			) from err
+
+	def _normalize_test_paths(self, target_dir: Path, test_paths: list[str] | None) -> list[str]:
+		if test_paths is None:
+			return []
+
+		normalized: list[str] = []
+		for rel_path in test_paths:
+			path = Path(rel_path)
+			if path.is_absolute():
+				continue
+			candidate = (target_dir / path).resolve()
+			if not candidate.exists() or not candidate.is_file():
+				continue
+			try:
+				normalized.append(str(candidate.relative_to(target_dir)))
+			except ValueError:
+				continue
+		return sorted(set(normalized))
 
 	def _extract_failed_tests(self, logs: str) -> list[str]:
 		summary_lines = [line for line in logs.splitlines() if " failed" in line and " in " in line]

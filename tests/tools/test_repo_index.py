@@ -39,3 +39,25 @@ def test_find_impacted_matches_keywords_and_importers() -> None:
 
     assert "main.py" in by_file
     assert "Imports matched file:" in by_file["main.py"].reason
+
+
+def test_build_skips_syntax_invalid_python_files(tmp_path: Path) -> None:
+    repo_root = tmp_path / "repo"
+    repo_root.mkdir()
+
+    (repo_root / "good.py").write_text(
+        "def ok():\n"
+        "    return 'ok'\n",
+        encoding="utf-8",
+    )
+    (repo_root / "bad.py").write_text(
+        "def broken(:\n"
+        "    pass\n",
+        encoding="utf-8",
+    )
+
+    index = RepoIndex()
+    index.build(str(repo_root))
+
+    assert "good.py" in index.file_symbols
+    assert "bad.py" not in index.file_symbols

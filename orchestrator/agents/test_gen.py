@@ -45,6 +45,7 @@ class TestGenAgent:
 			response = _GeneratedTestsResponse(files={})
 
 		normalized_allowed = {self._normalize_rel_path(path) for path in task.owned_files}
+		normalized_allowed |= self._inferred_test_targets(normalized_allowed)
 		for file_path in response.files:
 			normalized = self._normalize_rel_path(file_path)
 			if normalized not in normalized_allowed:
@@ -85,3 +86,43 @@ class TestGenAgent:
 	def _slugify(self, text: str) -> str:
 		slug = re.sub(r"[^a-z0-9]+", "-", text.lower()).strip("-")
 		return slug[:80] or "generated-project"
+
+	def _inferred_test_targets(self, normalized_allowed: set[str]) -> set[str]:
+		inferred: set[str] = set()
+		for path_str in normalized_allowed:
+			path = Path(path_str)
+			if not path.suffix:
+				continue
+			if path.parts and path.parts[0] == "tests":
+				continue
+
+			# Real-model outputs sometimes return test files inferred from source file names.
+			stem = path.stem
+			if stem:
+				for stem_variant in self._stem_variants(stem):
+					inferred.add(f"tests/test_{stem_variant}.py")
+					inferred.add(f"test_{stem_variant}.py")
+					if stem_variant.endswith("_api") and len(stem_variant) > 4:
+						base_stem = stem_variant[:-4]
+						inferred.add(f"tests/test_{base_stem}.py")
+						inferred.add(f"test_{base_stem}.py")
+					if stem_variant.endswith("_schema") and len(stem_variant) > 7:
+						base_stem = stem_variant[:-7]
+						inferred.add(f"tests/test_{base_stem}.py")
+						inferred.add(f"test_{base_stem}.py")
+
+			parent = path.parent.name
+			if parent and parent not in {"src", "app", "lib", "."}:
+				for parent_variant in self._stem_variants(parent):
+					inferred.add(f"tests/test_{parent_variant}.py")
+					inferred.add(f"test_{parent_variant}.py")
+
+		return inferred
+
+	def _stem_variants(self, stem: str) -> set[str]:
+		variants = {stem}
+		snake = re.sub(r"([a-z0-9])([A-Z])", r"\1_\2", stem).lower()
+		variants.add(snake)
+		variants.add(stem.replace("-", "_"))
+		variants.add(snake.replace("-", "_"))
+		return {variant for variant in variants if variant}

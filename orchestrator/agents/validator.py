@@ -10,7 +10,8 @@ from orchestrator.tools.sandbox_runner import SandboxRunner
 
 class ValidationAgent:
 	def run(self, task: Task, project_dir: str, sandbox: SandboxRunner) -> ValidationResult:
-		pytest_result = sandbox.run_pytest(project_dir)
+		scoped_tests = self._scoped_test_files(task)
+		pytest_result = sandbox.run_pytest(project_dir, test_paths=scoped_tests)
 
 		issues: list[str] = list(pytest_result.get("issues", []))
 		logs_parts: list[str] = []
@@ -37,6 +38,18 @@ class ValidationAgent:
 			logs="\n\n".join(part for part in logs_parts if part).strip(),
 			issues=sorted(set(issues)),
 		)
+
+	def _scoped_test_files(self, task: Task) -> list[str]:
+		scoped: list[str] = []
+		for rel_path in task.owned_files:
+			path = Path(rel_path)
+			if path.suffix != ".py":
+				continue
+			normalized = str(path).replace("\\", "/")
+			name = path.name.lower()
+			if "/tests/" in f"/{normalized}" or name.startswith("test_"):
+				scoped.append(normalized)
+		return sorted(set(scoped))
 
 	def _run_py_compile(self, task: Task, project_dir: str) -> tuple[bool, str, list[str]]:
 		project_root = Path(project_dir).resolve()

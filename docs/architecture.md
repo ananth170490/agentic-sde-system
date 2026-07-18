@@ -1,171 +1,139 @@
 # Architecture Overview
 
-This project is a stateful, agentic software engineering system that transforms a natural-language requirement into a reviewable engineering outcome through a controlled SDLC workflow.
+This system is a stateful, agentic software engineering orchestrator. It transforms a natural-language requirement into a controlled, reviewable engineering outcome with explicit phase routing, human gates, validation loops, and persistent run state.
 
-## End-to-End Architecture Flow (Beginning to End)
+## End-to-End Flow
 
 ```mermaid
 flowchart TD
-	Start([Start: Prompt Submitted]) --> API[Interface Layer<br/>FastAPI or scenario runner]
-	API --> Init[Initialize RunState + persist]
-	Init --> Intake[Intake Agent<br/>extract explicit, implicit, ambiguities]
+  Start([Requirement Submitted]) --> API[FastAPI Interface]
+  API --> Init[Initialize RunState + Persist]
+  Init --> Intake[Intake Agent]
 
-	Intake --> Ambig{Ambiguity high?}
-	Ambig -- Yes --> Clarify[Clarify Gate<br/>emit questions + pause]
-	Clarify --> ClarifyWait[[Await Human Clarification]]
-	ClarifyWait --> ClarifyResume[Resume with feedback]
-	ClarifyResume --> ContextRoute
-	Ambig -- No --> ContextRoute{Requirement type}
+  Intake --> Ambig{Ambiguity high?}
+  Ambig -- Yes --> Clarify[Clarify Gate]
+  Clarify --> ClarifyWait[[Await Human Input]]
+  ClarifyWait --> Route
+  Ambig -- No --> Route{Requirement Type}
 
-	ContextRoute -- Brownfield --> Codebase[Codebase Reasoning Agent<br/>repo index + impact analysis]
-	ContextRoute -- Greenfield --> Architect
-	ContextRoute -- Ambiguous after clarification --> Architect
-	Codebase --> Architect[Architect Agent<br/>components + data model + OpenAPI + tradeoffs]
+  Route -- Brownfield --> Codebase[Codebase Reasoning Agent]
+  Route -- Greenfield --> Architect
+  Route -- Ambiguous after clarification --> Architect
 
-	Architect --> Decompose[Task Decomposer Agent<br/>build dependency-aware Task DAG]
-	Decompose --> PlanGate[Plan Approval Gate]
-	PlanGate --> PlanWait[[Await Human Plan Approval]]
-	PlanWait --> Execute
+  Codebase --> Architect[Architect Agent]
+  Architect --> Decompose[Task Decomposer Agent]
 
-	Execute[Execute DAG] --> TaskLoop{Next runnable task?}
-	TaskLoop -- Yes --> CodeGen[CodeGen Agent]
-	CodeGen --> TestGen[TestGen Agent]
-	TestGen --> Validate[Validation Agent<br/>pytest + py_compile + pyflakes]
-	Validate --> Valid{Validation passed?}
-	Valid -- No --> Retry{Retry count < 3?}
-	Retry -- Yes --> Repair[Repair generation from validation feedback]
-	Repair --> CodeGen
-	Retry -- No --> Blocked[[Pause: execution blocked for human intervention]]
-	Valid -- Yes --> PersistTask[Persist task result + state]
-	PersistTask --> TaskLoop
-	TaskLoop -- No --> RiskDocs[RiskDocs Agent<br/>risks + final engineering summary]
+  Decompose --> PlanGate[Plan Approval Gate]
+  PlanGate --> PlanWait[[Await Human Approval]]
+  PlanWait --> Execute
 
-	RiskDocs --> MergeGate[Merge Approval Gate]
-	MergeGate --> MergeWait[[Await Human Merge Approval]]
-	MergeWait --> Finalize[Finalize Run]
-	Finalize --> PersistFinal[(Persist final RunState in SQLite)]
-	PersistFinal --> Artifacts[Generated artifacts + review payloads + run history]
-	Artifacts --> End([End: Completed/Rejected with full traceability])
+  Execute[Execute DAG] --> Next{Runnable task exists?}
+  Next -- Yes --> CodeGen[CodeGen Agent]
+  CodeGen --> TestGen[TestGen Agent]
+  TestGen --> Validate[Validator\npytest + py_compile + pyflakes]
+  Validate --> Pass{Passed?}
+  Pass -- Yes --> PersistTask[Persist task result]
+  PersistTask --> Next
+  Pass -- No --> Retry{Retry < 3?}
+  Retry -- Yes --> Repair[Repair with feedback]
+  Repair --> CodeGen
+  Retry -- No --> Rejected[[Terminal Rejection\nEngineering Summary]]
 
-	ModelLayer[(Model Provider Layer)] -. used by .-> Intake
-	ModelLayer -. used by .-> Architect
-	ModelLayer -. used by .-> Decompose
-	ModelLayer -. used by .-> CodeGen
-	ModelLayer -. used by .-> TestGen
-	ModelLayer -. used by .-> RiskDocs
-
-	Sandbox[(Sandbox Runner)] -. used by .-> Validate
-	RepoIndex[(Repo Index Tool)] -. used by .-> Codebase
-	Store[(RunStateStore SQLite)] -. checkpoint/persist .-> Init
-	Store -. checkpoint/persist .-> PersistTask
-	Store -. checkpoint/persist .-> PersistFinal
+  Next -- No --> RiskDocs[RiskDocs Agent]
+  RiskDocs --> MergeGate[Merge Approval Gate]
+  MergeGate --> MergeWait[[Await Human Approval]]
+  MergeWait --> Finalize[Finalize Run]
+  Finalize --> PersistFinal[(Persist Final State)]
+  Rejected --> PersistFinal
+  PersistFinal --> End([Completed or Rejected])
 ```
-
-The diagram shows the full lifecycle from prompt intake to completion, including ambiguity handling, brownfield impact analysis, dependency-driven execution, validation/repair loops, human approval gates, and persisted outputs.
 
 ## Runtime Layers
 
-### 1. Interface Layer
+## 1. Interface Layer
 
-- API interface for submit/get/approve/reject run control
-- Scenario runners for greenfield, brownfield, and ambiguous demonstrations
+- FastAPI endpoints for submit, inspect, approve, and reject
+- Live demo UI (`/live-demo`) for gate-driven demonstration flow
+- Example scripts for greenfield, brownfield, and ambiguous scenarios
 
-### 2. Orchestration Layer
+## 2. Orchestration Layer
 
-- `OrchestrationGraph` composes nodes, routes, and interrupt behavior
-- Human approval gates provide controlled autonomy
-- `RunState` acts as the single source of truth per run
+- `orchestrator/graph.py` defines node flow and phase transitions
+- `orchestrator/state.py` stores `RunState`, `TaskDAG`, validation history, and summaries
+- Human gates pause execution at clarify, plan, and merge checkpoints
 
-### 3. Agent Layer
+## 3. Agent Layer
 
-- semantic requirement understanding
-- architecture and API design
-- dependency-aware task planning
-- implementation and test generation
-- validation and repair
-- risk and final-summary synthesis
+- Intake: requirement normalization and ambiguity scoring
+- Codebase reasoning: impacted-area analysis for brownfield
+- Architect: components, API contract, data model, trade-offs
+- Task decomposer: dependency-aware DAG
+- Code/test generation and validation with bounded repair
+- Risk docs: final engineering-grade summary generation
 
-### 4. Tool Layer
+## 4. Tooling Layer
 
-- model-provider abstraction (real-model or deterministic scripted path)
-- repo impact analysis for brownfield scenarios
-- sandboxed pytest execution and static checks
+- Model provider abstraction: Anthropic, OpenRouter, Ollama, scripted
+- Sandbox runner for scoped test execution
+- Repo index for AST/import-based brownfield impact analysis
 
-### 5. Artifact Layer
+## 5. Persistence and Artifacts
 
-- generated implementation/test outputs under `generated_projects`
-- final engineering summaries under `docs`
-- persisted orchestration states in SQLite
+- SQLite-backed run persistence for pause/resume and crash recovery
+- Per-run generated artifacts under `generated_projects/`
+- Final summary markdown for evaluator-friendly traceability
 
-## Agent Responsibilities
+## OpenRouter Integration Architecture
 
-- IntakeAgent: parse requirement text into structured RequirementSpec with category, explicit/implicit requirements, ambiguities, and ambiguity score.
-- CodebaseReasoningAgent: for brownfield requests, index the repo and identify impacted files/modules via AST extraction, import graph traversal, and keyword matching.
-- ArchitectAgent: produce ArchitectureDesign (components, data model, OpenAPI YAML, trade-offs).
-- TaskDecomposerAgent: produce TaskDAG with dependency-aware tasks and owned file boundaries.
-- CodeGenAgent: generate implementation files per task, constrained to task-owned paths; supports repair loop using validation feedback.
-- TestGenAgent: generate pytest tests per task (unit + integration-level behavior).
-- ValidationAgent: run pytest plus static checks (`py_compile`, `pyflakes`) and return structured ValidationResult.
-- RiskDocsAgent: synthesize risks and final engineering summary markdown with required review sections.
+OpenRouter is integrated via an OpenAI-compatible chat completion client in `orchestrator/tools/model_provider.py`.
 
-## Mandatory Use Case Coverage (URL Shortener)
+Primary behavior:
 
-Requirement:
+- structured output requested per Pydantic schema
+- parse + validation retries when feasible
+- schema-safe fallback synthesis if provider call fails
+- domain-safe fallback coercion for critical objects (`RequirementSpec`, `TaskDAG`, etc.)
 
-"Build a scalable URL shortener service with APIs, persistence, and analytics."
+Latest resilience behavior:
 
-How this architecture covers it:
+- fallback reason text is humanized and sanitized
+- raw upstream provider error strings are not shown in reviewer-facing output summaries
 
-1. Intake agent structures the requirement and ambiguities.
-2. Architect agent produces components, data model, OpenAPI, and trade-offs.
-3. Task decomposer creates dependency-aware implementation/test tasks.
-4. Code and test generators produce URL shortener artifacts.
-5. Validator runs `pytest`, `py_compile`, and `pyflakes`.
-6. Risk docs summarize trade-offs and validation strategy.
-7. Plan and merge approval gates enforce controlled human oversight.
+Example sanitized fallback text:
 
-## Data and State Model
+```text
+Provider fallback used because the model provider request was blocked by quota/billing limits. Check provider credits and retry the run.
+```
 
-Core state entities:
+## Execution and Failure Semantics
 
-- `RequirementSpec`: normalized requirement interpretation
-- `ArchitectureDesign`: components, data model, API contract, trade-offs
-- `TaskDAG` and `Task`: execution graph with dependencies and owned files
-- `ValidationResult`: validation outcomes and issue tracking
-- `RunState`: lifecycle state for the full run
+Key guarantees in `execute_dag`:
 
-State transitions are deterministic and persisted, enabling reliable pause/resume and post-run auditability.
+- every task executes with explicit status tracking
+- validation failure triggers bounded repair loop
+- unrecoverable failure transitions run to terminal `rejected`
+- rejection includes an engineering-grade final summary (not an opaque crash)
 
-## Crash Recovery Mechanism
+This prevents silent hangs and improves reviewer confidence in operational behavior.
 
-Recovery is implemented in two layers:
+## Crash Recovery and Resume
 
-- RunStateStore (SQLite): each node persists the full RunState after transition. If the process crashes, the latest persisted state can be loaded by run_id.
-- LangGraph checkpointing: graph execution uses a checkpointer and interrupt points (`interrupt_before`) for human gates. On resume, the graph continues from the appropriate phase/thread rather than starting over.
+Recovery uses two mechanisms:
 
-Combined behavior:
+- `RunStateStore` persistence after phase transitions
+- LangGraph checkpoint/interrupt behavior at gate boundaries
 
-- During normal execution, every node update is saved.
-- At human approval gates, execution pauses at interrupt points with `awaiting_human=True` and a `review_payload`.
-- On approval/resume, the orchestration reloads RunState and continues from current_phase.
+Operationally this means:
 
-## Deployment and Execution Options
+- runs can resume from last persisted phase
+- human approval pauses are resumable
+- process restarts do not require rerunning from intake
 
-Supported run paths:
+## Why This Architecture Is Assignment-Strong
 
-- Local Python execution (`uvicorn`, scripts, pytest)
-- Docker/Compose API execution for evaluator-friendly reproducibility
-
-Model-provider flexibility:
-
-- Anthropic for real-model runs
-- Ollama for local-model runs
-- Scripted provider for deterministic mandatory-use-case demonstration
-
-## Architecture Strengths
-
-- clear separation of control-plane and execution-plane responsibilities
-- explicit dependency-aware orchestration rather than single-prompt generation
-- built-in validation and bounded repair loop for output quality
-- controlled autonomy through human approval gates
-- persistence and checkpointing for resilience and traceability
+- full lifecycle from requirement to engineering summary
+- dependency-aware decomposition and bounded execution
+- validation-driven acceptance criteria
+- explicit human governance points
+- resilience to provider outages and malformed model outputs
+- reviewable, deterministic state transitions
