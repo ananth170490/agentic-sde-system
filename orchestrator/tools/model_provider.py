@@ -2,7 +2,8 @@ from __future__ import annotations
 
 import json
 import os
-from typing import TypeVar
+from types import UnionType
+from typing import Any, TypeVar, Union, get_args, get_origin
 from urllib import request
 
 from anthropic import Anthropic
@@ -49,7 +50,79 @@ class _StructuredOutputMixin:
 
 	def _parse_response(self, raw_text: str, response_model: type[ModelT]) -> ModelT:
 		payload = json.loads(self._extract_json(raw_text))
-		return response_model.model_validate(payload)
+		try:
+			return response_model.model_validate(payload)
+		except ValidationError:
+			coerced_payload = self._coerce_payload_for_model(payload, response_model)
+			return response_model.model_validate(coerced_payload)
+
+	def _coerce_payload_for_model(self, payload: Any, response_model: type[ModelT]) -> Any:
+		if isinstance(payload, list):
+			field_names = list(response_model.model_fields.keys())
+			if len(field_names) == 1:
+				field_name = field_names[0]
+				field_info = response_model.model_fields[field_name]
+				return {field_name: self._coerce_value(payload, field_info.annotation)}
+			return payload
+
+		if not isinstance(payload, dict):
+			return payload
+
+		coerced = dict(payload)
+		for field_name, field_info in response_model.model_fields.items():
+			if field_name not in coerced:
+				continue
+			coerced[field_name] = self._coerce_value(coerced[field_name], field_info.annotation)
+		return coerced
+
+	def _coerce_value(self, value: Any, annotation: Any) -> Any:
+		origin = get_origin(annotation)
+
+		if origin in (Union, UnionType):
+			args = [arg for arg in get_args(annotation) if arg is not type(None)]
+			if not args:
+				return value
+			return self._coerce_value(value, args[0])
+
+		if origin is list:
+			item_type = get_args(annotation)[0] if get_args(annotation) else Any
+			items = value if isinstance(value, list) else [value]
+			return [self._coerce_value(item, item_type) for item in items]
+
+		if origin is dict:
+			key_type, value_type = get_args(annotation) if get_args(annotation) else (Any, Any)
+			if isinstance(value, list):
+				coerced_dict: dict[Any, Any] = {}
+				for index, item in enumerate(value):
+					if isinstance(item, dict):
+						raw_key = item.get("path") or item.get("file") or item.get("filename") or item.get("name")
+						raw_value = item.get("content") or item.get("code") or item.get("text")
+						if raw_key is not None and raw_value is not None:
+							coerced_key = self._coerce_value(raw_key, key_type)
+							coerced_dict[coerced_key] = self._coerce_value(raw_value, value_type)
+							continue
+					coerced_dict[self._coerce_value(f"item_{index}", key_type)] = self._coerce_value(item, value_type)
+				return coerced_dict
+			if isinstance(value, dict):
+				return {
+					self._coerce_value(k, key_type): self._coerce_value(v, value_type)
+					for k, v in value.items()
+				}
+
+		if annotation is str:
+			if isinstance(value, str):
+				return value
+			if isinstance(value, dict) and isinstance(value.get("name"), str):
+				description = value.get("description")
+				if isinstance(description, str) and description.strip():
+					return f"{value['name']}: {description}"
+				return value["name"]
+			return json.dumps(value, ensure_ascii=True)
+
+		if isinstance(annotation, type) and issubclass(annotation, BaseModel) and isinstance(value, dict):
+			return self._coerce_payload_for_model(value, annotation)
+
+		return value
 
 	def _extract_json(self, raw_text: str) -> str:
 		text = raw_text.strip()

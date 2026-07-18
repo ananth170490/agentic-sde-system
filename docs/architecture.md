@@ -2,99 +2,66 @@
 
 This project is a stateful, agentic software engineering system that transforms a natural-language requirement into a reviewable engineering outcome through a controlled SDLC workflow.
 
-The architecture is intentionally split into:
-
-- orchestration control plane (state machine + gates + persistence)
-- agent execution plane (analysis, planning, generation, validation)
-- tool layer (model providers, sandbox execution, brownfield reasoning)
-- interface layer (API endpoints + runnable scenario scripts)
-
-For the mandatory requirement, the system supports:
-
-- requirement analysis and ambiguity detection
-- architecture and OpenAPI design generation
-- dependency-aware task decomposition
-- code, API, and test generation
-- validation, retry/repair, and risk summary generation
-- human oversight at plan and merge checkpoints
-
-## High-Level System View
-
-```mermaid
-flowchart LR
-	U[User or Evaluator] --> API[FastAPI Interface]
-	API --> G[LangGraph Orchestrator]
-	G --> S[(RunStateStore SQLite)]
-
-	G --> A1[Intake Agent]
-	G --> A2[Codebase Reasoning Agent]
-	G --> A3[Architect Agent]
-	G --> A4[Task Decomposer Agent]
-	G --> A5[Code Generation Agent]
-	G --> A6[Test Generation Agent]
-	G --> A7[Validation Agent]
-	G --> A8[Risk Docs Agent]
-
-	A1 --> MP[Model Provider Layer]
-	A3 --> MP
-	A4 --> MP
-	A5 --> MP
-	A6 --> MP
-	A8 --> MP
-
-	A2 --> RI[Repo Index Tool]
-	A7 --> SR[Sandbox Runner]
-
-	A5 --> GP[generated_projects]
-	A6 --> GP
-	A7 --> GP
-```
-
-## Control-Flow Architecture
-
-## Graph Flow
+## End-to-End Architecture Flow (Beginning to End)
 
 ```mermaid
 flowchart TD
-	START([START]) --> RF{Route From current_phase}
+	Start([Start: Prompt Submitted]) --> API[Interface Layer<br/>FastAPI or scenario runner]
+	API --> Init[Initialize RunState + persist]
+	Init --> Intake[Intake Agent<br/>extract explicit, implicit, ambiguities]
 
-	RF --> Intake[intake]
-	RF --> Clarify[clarify_gate]
-	RF --> CBR[codebase_reasoning]
-	RF --> Arch[architect]
-	RF --> Decomp[task_decomposer]
-	RF --> PlanGate[plan_approval_gate]
-	RF --> Exec[execute_dag]
-	RF --> Risk[risk_docs]
-	RF --> MergeGate[merge_approval_gate]
-	RF --> Finalize[finalize]
+	Intake --> Ambig{Ambiguity high?}
+	Ambig -- Yes --> Clarify[Clarify Gate<br/>emit questions + pause]
+	Clarify --> ClarifyWait[[Await Human Clarification]]
+	ClarifyWait --> ClarifyResume[Resume with feedback]
+	ClarifyResume --> ContextRoute
+	Ambig -- No --> ContextRoute{Requirement type}
 
-	Intake --> AI{ambiguity_score > 0.5?}
-	AI -- yes --> Clarify
-	AI -- no --> CBR
+	ContextRoute -- Brownfield --> Codebase[Codebase Reasoning Agent<br/>repo index + impact analysis]
+	ContextRoute -- Greenfield --> Architect
+	ContextRoute -- Ambiguous after clarification --> Architect
+	Codebase --> Architect[Architect Agent<br/>components + data model + OpenAPI + tradeoffs]
 
-	Clarify --> AC{awaiting_human?}
-	AC -- yes --> EndWait1([END - paused for clarify])
-	AC -- no --> CBR
+	Architect --> Decompose[Task Decomposer Agent<br/>build dependency-aware Task DAG]
+	Decompose --> PlanGate[Plan Approval Gate]
+	PlanGate --> PlanWait[[Await Human Plan Approval]]
+	PlanWait --> Execute
 
-	CBR --> Arch --> Decomp --> PlanGate --> PlanWait[plan_approval_wait]
-	PlanWait -. interrupt_before .-> EndWait2([END - plan approval interrupt])
+	Execute[Execute DAG] --> TaskLoop{Next runnable task?}
+	TaskLoop -- Yes --> CodeGen[CodeGen Agent]
+	CodeGen --> TestGen[TestGen Agent]
+	TestGen --> Validate[Validation Agent<br/>pytest + py_compile + pyflakes]
+	Validate --> Valid{Validation passed?}
+	Valid -- No --> Retry{Retry count < 3?}
+	Retry -- Yes --> Repair[Repair generation from validation feedback]
+	Repair --> CodeGen
+	Retry -- No --> Blocked[[Pause: execution blocked for human intervention]]
+	Valid -- Yes --> PersistTask[Persist task result + state]
+	PersistTask --> TaskLoop
+	TaskLoop -- No --> RiskDocs[RiskDocs Agent<br/>risks + final engineering summary]
 
-	Exec --> AE{awaiting_human?}
-	AE -- yes --> EndWait3([END - blocked execution])
-	AE -- no --> Risk --> MergeGate --> MergeWait[merge_approval_wait]
-	MergeWait -. interrupt_before .-> EndWait4([END - merge approval interrupt])
+	RiskDocs --> MergeGate[Merge Approval Gate]
+	MergeGate --> MergeWait[[Await Human Merge Approval]]
+	MergeWait --> Finalize[Finalize Run]
+	Finalize --> PersistFinal[(Persist final RunState in SQLite)]
+	PersistFinal --> Artifacts[Generated artifacts + review payloads + run history]
+	Artifacts --> End([End: Completed/Rejected with full traceability])
 
-	Finalize --> END([END - completed])
+	ModelLayer[(Model Provider Layer)] -. used by .-> Intake
+	ModelLayer -. used by .-> Architect
+	ModelLayer -. used by .-> Decompose
+	ModelLayer -. used by .-> CodeGen
+	ModelLayer -. used by .-> TestGen
+	ModelLayer -. used by .-> RiskDocs
+
+	Sandbox[(Sandbox Runner)] -. used by .-> Validate
+	RepoIndex[(Repo Index Tool)] -. used by .-> Codebase
+	Store[(RunStateStore SQLite)] -. checkpoint/persist .-> Init
+	Store -. checkpoint/persist .-> PersistTask
+	Store -. checkpoint/persist .-> PersistFinal
 ```
 
-Key control-flow properties:
-
-- state-driven routing using `current_phase`
-- conditional clarify gate for ambiguous inputs
-- explicit interrupt points before plan and merge waits
-- retry-and-repair loop during DAG execution
-- persistent state save after node transitions
+The diagram shows the full lifecycle from prompt intake to completion, including ambiguity handling, brownfield impact analysis, dependency-driven execution, validation/repair loops, human approval gates, and persisted outputs.
 
 ## Runtime Layers
 

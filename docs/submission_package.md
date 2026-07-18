@@ -237,7 +237,318 @@ Observed behavior during validation:
 - it produced clear review questions
 - after feedback, it resumed and completed successfully
 
-## Testing and Verification
+## Evaluator Checklist Mapping
+
+This section maps directly to the requested evaluator outcomes.
+
+### Presenter Talk Track (Use This During Demo)
+
+When presenting to an engineer/interviewer, use this sequence:
+
+1. **Say**: "This system classifies requirement type first (greenfield, brownfield, ambiguous), then routes orchestration accordingly."
+2. **Show**: intake output (`category`, explicit/implicit requirements, ambiguities).
+3. **Show**: task DAG decomposition and dependency order.
+4. **Show**: orchestration phase transitions and approval gates.
+5. **Prove**: validator output (`pytest`, `py_compile`, `pyflakes`) and retry behavior.
+6. **Close**: known limitations and trade-offs with production path.
+
+### A. Sample Inputs and Outputs
+
+Required scenario coverage:
+
+1. Greenfield requirement
+2. Brownfield requirement
+3. Ambiguous requirement
+
+For each example below, the output demonstrates:
+
+- task decomposition
+- multi-step orchestration
+- output validation
+
+### 1. Greenfield Requirement
+
+Sample input:
+
+```text
+Build a scalable URL shortener service with APIs, persistence, and analytics.
+```
+
+Sample output highlights:
+
+- Requirement classification: `greenfield`
+- Task decomposition (sample):
+	- `T1`: core API and persistence schema
+	- `T2`: redirect analytics implementation
+	- `T3`: tests and docs
+- Multi-step orchestration path:
+	- `intake -> architecture -> task_decompose -> plan_review -> execute_dag -> risk_docs -> merge_review -> completed`
+- Output validation evidence:
+	- validator executes `pytest`, `py_compile`, and `pyflakes`
+	- failing tasks are retried through bounded repair loop
+
+Sample output (representative):
+
+```json
+{
+	"requirement": {
+		"category": "greenfield",
+		"explicit_requirements": [
+			"URL shortening API",
+			"Persistence layer",
+			"Click analytics"
+		],
+		"implicit_requirements": [
+			"Scalable API nodes",
+			"Collision-safe short codes",
+			"Track redirect counters"
+		],
+		"ambiguities": [],
+		"ambiguity_score": 0.0
+	},
+	"impacted_areas": [],
+	"task_decomposition": {
+		"tasks": [
+			{"id": "T1", "title": "Core shorten + resolve APIs", "depends_on": []},
+			{"id": "T2", "title": "Persistence + analytics endpoint", "depends_on": ["T1"]},
+			{"id": "T3", "title": "Tests + docs", "depends_on": ["T2"]}
+		]
+	},
+	"orchestration": {
+		"phase_path": [
+			"intake",
+			"architecture",
+			"task_decompose",
+			"plan_review",
+			"execute_dag",
+			"risk_docs",
+			"merge_review",
+			"completed"
+		]
+	},
+	"validation": {
+		"checks": ["pytest", "py_compile", "pyflakes"],
+		"result": "passed"
+	},
+	"final_output": {
+		"status": "completed",
+		"summary": "Generated API, persistence layer, analytics endpoint, and tests."
+	}
+}
+```
+
+How to explain it in one line:
+
+- "No existing system constraints, so the workflow prioritizes architecture-first planning and dependency-ordered implementation."
+
+Primary runnable example: [examples/greenfield_run/run_url_shortener.py](../examples/greenfield_run/run_url_shortener.py)
+
+### 2. Brownfield Requirement
+
+Sample input:
+
+```text
+Add JWT auth middleware and role-based access checks to the existing fixture service endpoints.
+```
+
+Sample output highlights:
+
+- Requirement classification: `brownfield`
+- Task decomposition (sample):
+	- `T1`: impacted module discovery and access-control design
+	- `T2`: middleware and endpoint integration
+	- `T3`: regression tests for protected/unprotected routes
+- Multi-step orchestration path:
+	- `intake -> codebase_reasoning -> architecture -> task_decompose -> execute_dag`
+- Output validation evidence:
+	- impacted file detection includes brownfield fixture modules
+	- generated changes validated with static/runtime checks
+
+Sample output (representative):
+
+```json
+{
+	"requirement": {
+		"category": "brownfield",
+		"explicit_requirements": [
+			"JWT auth middleware",
+			"Role-based access checks"
+		],
+		"implicit_requirements": [
+			"Do not break existing endpoint contracts",
+			"Preserve compatibility for current consumers"
+		],
+		"ambiguities": [],
+		"ambiguity_score": 0.0
+	},
+	"impacted_areas": [
+		{"module": "fixture_service.app", "files": ["examples/brownfield_run/fixture_service/app.py"], "reason": "protected route updates"},
+		{"module": "fixture_service.tests", "files": ["examples/brownfield_run/fixture_service/tests/test_auth.py"], "reason": "regression coverage"}
+	],
+	"task_decomposition": {
+		"tasks": [
+			{"id": "T1", "title": "Auth design + impacted module plan", "depends_on": []},
+			{"id": "T2", "title": "Middleware + endpoint integration", "depends_on": ["T1"]},
+			{"id": "T3", "title": "Regression tests for role checks", "depends_on": ["T2"]}
+		]
+	},
+	"orchestration": {
+		"phase_path": [
+			"intake",
+			"codebase_reasoning",
+			"architecture",
+			"task_decompose",
+			"execute_dag",
+			"completed"
+		]
+	},
+	"validation": {
+		"checks": ["pytest", "py_compile", "pyflakes"],
+		"result": "passed"
+	},
+	"final_output": {
+		"status": "completed",
+		"summary": "Integrated auth middleware with role checks and validated regressions."
+	}
+}
+```
+
+How to explain it in one line:
+
+- "Because this is a modification request, the system performs codebase reasoning before planning to reduce unsafe or unrelated edits."
+
+Primary runnable example: [examples/brownfield_run/run_add_auth.py](../examples/brownfield_run/run_add_auth.py)
+
+### 3. Ambiguous Requirement
+
+Sample input:
+
+```text
+Make the reporting faster.
+```
+
+Sample output highlights:
+
+- Requirement classification: `ambiguous`
+- Task decomposition behavior:
+	- DAG creation is intentionally blocked until clarifications are provided
+	- after clarification, tasks are decomposed and scheduled normally
+- Multi-step orchestration path:
+	- `intake -> clarify_gate(pause) -> resume_with_feedback -> architecture -> task_decompose -> execute_dag`
+- Output validation evidence:
+	- clarify gate produces structured review payload and pause state
+	- resumed run continues with normal validator checks
+
+Sample output (representative):
+
+```json
+{
+	"requirement": {
+		"category": "ambiguous",
+		"explicit_requirements": [],
+		"implicit_requirements": [],
+		"ambiguities": [
+			"Report type is unspecified",
+			"Target latency/SLO not specified",
+			"Allowed trade-off between freshness and cost unknown"
+		],
+		"ambiguity_score": 0.82
+	},
+	"impacted_areas": [],
+	"orchestration": {
+		"phase_path": [
+			"intake",
+			"clarify_gate",
+			"clarify_wait",
+			"resume_with_feedback",
+			"architecture",
+			"task_decompose",
+			"execute_dag",
+			"completed"
+		],
+		"pause_state": "awaiting_human"
+	},
+	"task_decomposition_after_clarification": {
+		"tasks": [
+			{"id": "T1", "title": "Baseline profiling and bottleneck identification", "depends_on": []},
+			{"id": "T2", "title": "Query/index optimization", "depends_on": ["T1"]},
+			{"id": "T3", "title": "Performance regression tests and report", "depends_on": ["T2"]}
+		]
+	},
+	"validation": {
+		"checks": ["pytest", "py_compile", "pyflakes"],
+		"result": "passed_after_clarification"
+	},
+	"final_output": {
+		"status": "completed",
+		"summary": "Clarifications resolved ambiguity, then optimization tasks executed and validated."
+	}
+}
+```
+
+How to explain it in one line:
+
+- "Ambiguity is treated as an engineering risk, so the system pauses for clarification instead of guessing and generating low-quality output."
+
+Primary runnable example: [examples/ambiguous_run/run_ambiguous.py](../examples/ambiguous_run/run_ambiguous.py)
+
+### B. Setup Instructions
+
+These steps are designed so another engineer can run and evaluate quickly.
+
+1. Clone and install dependencies.
+
+```bash
+python -m venv .venv
+source .venv/bin/activate
+pip install -r requirements.txt
+```
+
+2. Choose demo mode for deterministic evaluator runs (recommended for presentation).
+
+```bash
+cp .env.example .env
+# set DEMO_MODE=true in .env
+```
+
+3. Start API.
+
+```bash
+docker compose up -d --build
+```
+
+or local:
+
+```bash
+uvicorn orchestrator.api.main:app --reload
+```
+
+4. Evaluate from Swagger UI (`/docs`).
+
+- submit `POST /requirements` with one sample prompt
+- poll `GET /runs/{run_id}`
+- approve with `POST /runs/{run_id}/approve`
+- observe phase transitions and final status
+
+5. Run scenario scripts directly.
+
+```bash
+PYTHONPATH=. .venv/bin/python examples/greenfield_run/run_url_shortener.py
+PYTHONPATH=. .venv/bin/python examples/brownfield_run/run_add_auth.py
+PYTHONPATH=. .venv/bin/python examples/ambiguous_run/run_ambiguous.py
+```
+
+Evaluator-ready acceptance checks:
+
+1. Confirm each scenario reaches expected classification (`greenfield`, `brownfield`, `ambiguous`).
+2. Confirm a DAG is present for greenfield/brownfield after planning.
+3. Confirm ambiguous flow pauses before decomposition until clarification is provided.
+4. Confirm validator results are populated and not bypassed.
+5. Confirm final summary includes risks/trade-offs/assumptions.
+
+### C. Testing Approach
+
+#### How correctness and output quality are validated
 
 Automated verification currently passes:
 
@@ -255,17 +566,36 @@ Primary coverage files:
 - [tests/agents/test_test_gen.py](../tests/agents/test_test_gen.py)
 - [tests/agents/test_risk_docs.py](../tests/agents/test_risk_docs.py)
 
-What is verified automatically:
+Correctness checks include:
 
-- structured requirement parsing
+- schema-constrained requirement understanding (`RequirementSpec`)
 - DAG ordering and cycle detection
-- file ownership guardrails
-- sandbox timeout behavior
-- API submit and approval flow
-- end-to-end graph transitions with paused and resumed states
-- final summary generation with required sections
+- API workflow transitions and gate behavior
+- pause/resume state persistence and recovery
 
-## Setup and Run Instructions
+Output quality checks include:
+
+- runtime tests (`pytest`)
+- compilation checks (`py_compile`)
+- static quality checks (`pyflakes`)
+- bounded repair loop when validation fails
+
+How to judge output quality during evaluation:
+
+1. **Structural quality**: output matches strict schemas (`RequirementSpec`, `TaskDAG`, `RunState`).
+2. **Behavioral quality**: generated artifacts pass runtime/static checks.
+3. **Process quality**: orchestration uses gates, retries, and persisted state transitions.
+4. **Review quality**: final summary reports risks and trade-offs explicitly.
+
+#### Known limitations and trade-offs
+
+- Real-model generation quality varies by provider/model latency and output quality.
+- Demo mode is deterministic and ideal for evaluation walkthroughs, but it is not live generation.
+- Sandbox execution is subprocess-based, not full container/VM isolation.
+- Brownfield reasoning uses AST/heuristic indexing, not embedding-based semantic retrieval.
+- Human approval is API-driven and documented via review payloads rather than a dedicated front-end review workspace.
+
+## Setup and Run Instructions (Quick Reference)
 
 ### Local Setup
 
@@ -285,26 +615,6 @@ uvicorn orchestrator.api.main:app --reload
 
 ```bash
 PYTHONPATH=. .venv/bin/python -m pytest -q
-```
-
-### Run Example Scenarios
-
-Brownfield:
-
-```bash
-PYTHONPATH=. .venv/bin/python examples/brownfield_run/run_add_auth.py
-```
-
-Ambiguous:
-
-```bash
-PYTHONPATH=. .venv/bin/python examples/ambiguous_run/run_ambiguous.py
-```
-
-Mandatory greenfield scenario:
-
-```bash
-PYTHONPATH=. .venv/bin/python examples/greenfield_run/run_url_shortener.py
 ```
 
 ## Technical Strengths

@@ -15,6 +15,7 @@ Optional provider selection:
 - `MODEL_PROVIDER=anthropic` (default)
 - `MODEL_PROVIDER=ollama`
 - `MODEL_PROVIDER=scripted` for deterministic local demo fallback of the mandatory URL shortener flow
+- `DEMO_MODE=true` for deterministic hardcoded API responses in Swagger demos
 
 You can use `.env.example` as a template.
 
@@ -47,6 +48,7 @@ This script submits the URL shortener requirement, prints gate review payloads, 
 
 - `docs/submission_package.md`: submission-ready write-up that maps the implementation directly to the assignment requirements.
 - `docs/live_demo_checklist.md`: terminal-by-terminal 5-minute and 10-minute demo scripts with exact commands and talking points.
+- `docs/demo_mode_and_production_readiness.md`: hardcoded demo mode usage, sample prompts, and production-readiness plan.
 
 ## Submission KT
 
