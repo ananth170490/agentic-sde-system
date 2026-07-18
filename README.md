@@ -165,7 +165,7 @@ Core orchestration lives in a phase-routed graph with persistent state:
 
 ## Documentation
 
-- `docs/submission_guide.md`: interviewer-facing KT and walkthrough
+- `docs/submission_guide.md`: review-ready walkthrough and knowledge transfer guide
 - `docs/live_demo_checklist.md`: 5-min and 10-min demo scripts
 - `docs/submission_package.md`: assignment mapping and implementation summary
 - `docs/demo_mode_and_production_readiness.md`: demo mode and production hardening notes
