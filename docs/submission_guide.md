@@ -54,8 +54,8 @@ The intake step converts raw text into a structured `RequirementSpec`.
 This captures:
 
 - requirement category
-- explicit requirements
-- implicit requirements
+- Greenfield requirements
+- Brownfield requirements
 - ambiguities
 - ambiguity score
 
