@@ -8,6 +8,11 @@ from uuid import uuid4
 
 from pydantic import BaseModel
 
+
+WORKSPACE_ROOT = Path(__file__).resolve().parents[2]
+if str(WORKSPACE_ROOT) not in sys.path:
+    sys.path.insert(0, str(WORKSPACE_ROOT))
+
 from orchestrator.graph import OrchestrationGraph
 from orchestrator.state import RequirementCategory, RequirementSpec, RunState, RunStateStore
 from orchestrator.tools.model_provider import build_model_provider_from_env

@@ -7,6 +7,7 @@ from pathlib import Path
 from uuid import uuid4
 
 from fastapi import Depends, FastAPI, HTTPException
+from fastapi.responses import FileResponse
 from pydantic import BaseModel
 
 from orchestrator.graph import OrchestrationGraph
@@ -235,6 +236,8 @@ def get_orchestration_graph() -> OrchestrationGraph:
 
 app = FastAPI(title="Agentic SDE Orchestrator API")
 
+_LIVE_DEMO_UI_PATH = (Path.cwd() / "docs" / "live_demo_ui.html").resolve()
+
 
 @app.post("/requirements")
 def create_requirement(
@@ -335,3 +338,10 @@ def reject_run(
 	state.review_payload = None
 	graph.store.save(state)
 	return {"run_id": state.run_id, "status": state.status, "reason": state.rejection_reason}
+
+
+@app.get("/live-demo", include_in_schema=False)
+def live_demo_ui() -> FileResponse:
+	if not _LIVE_DEMO_UI_PATH.exists():
+		raise HTTPException(status_code=404, detail="Live demo UI not found")
+	return FileResponse(_LIVE_DEMO_UI_PATH)

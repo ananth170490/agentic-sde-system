@@ -1,6 +1,12 @@
 from __future__ import annotations
 
+import sys
 from pathlib import Path
+
+
+WORKSPACE_ROOT = Path(__file__).resolve().parents[2]
+if str(WORKSPACE_ROOT) not in sys.path:
+    sys.path.insert(0, str(WORKSPACE_ROOT))
 
 from orchestrator.agents.codebase_reasoning import CodebaseReasoningAgent
 from orchestrator.state import RequirementCategory, RequirementSpec
@@ -11,7 +17,7 @@ REQUIREMENT_TEXT = "Add JWT-based authentication to the notes API, protecting al
 
 
 def main() -> None:
-    workspace_root = Path(__file__).resolve().parents[2]
+    workspace_root = WORKSPACE_ROOT
     fixture_repo = workspace_root / "examples" / "brownfield_run" / "fixture_service"
 
     intake_model = FakeModelProvider(

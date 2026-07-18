@@ -111,3 +111,11 @@ def test_api_happy_path_submit_approve_plan_approve_merge_completed(tmp_path: Pa
     assert run_state_payload["current_phase"] == "completed"
 
     app.dependency_overrides.clear()
+
+
+def test_live_demo_ui_served() -> None:
+    client = TestClient(app)
+    response = client.get("/live-demo")
+
+    assert response.status_code == 200
+    assert "Live Demo Runner" in response.text

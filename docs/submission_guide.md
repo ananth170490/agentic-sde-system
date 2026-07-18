@@ -185,9 +185,9 @@ The project supports recovery in two ways:
 
 This means a run can be recovered instead of restarted from zero.
 
-## Strongest Evidence: Validation and Repair Loop
+## Validation and Repair Loop Design
 
-One of the strongest parts of this project is the repair and retry loop.
+One of the stronger architectural features in this project is the bounded validation-and-repair loop.
 
 The system does not assume the first generation is correct.
 
@@ -196,35 +196,25 @@ Instead, it:
 1. generates code
 2. generates tests
 3. validates them
-4. if validation fails, calls repair
+4. if validation fails, calls repair with structured feedback
 5. retries up to a bounded limit
 6. pauses for human intervention if recovery fails
 
 This directly addresses the evaluation criteria around quality, validation, and risk management.
 
-### Evidence From an Intentional Failure Test
+What is concretely implemented:
 
-A deliberate experiment was run where the first generated implementation failed its test, and the graph was allowed to repair and retry.
-
-Observed evidence:
-
-```text
-Validation history:
-  [1] task=calc-001 passed=False issues=['tests/test_calc.py::test_add']
-  [2] task=calc-001 passed=True issues=[]
-
-Task retry_count=1, status=TaskStatus.DONE, output_summary=Validated successfully
-REPAIR_LOOP_CONFIRMED: first validation failed, repair retried, later validation passed.
-```
+- validation is integrated into DAG execution
+- each failed validation can trigger repair
+- retry count is bounded per task
+- unrecoverable failures stop automation and require human intervention
 
 Why this matters:
 
-- it proves the validation agent is active
-- it proves failure is detected, not ignored
-- it proves repair logic is wired into the orchestration
-- it proves the workflow can recover and continue successfully
-
-This is strong evidence for both error handling and cross-step coordination.
+- it proves the validation agent is active in the execution path
+- it proves failure is modeled explicitly rather than ignored
+- it shows cross-step coordination between generation, validation, and repair
+- it keeps autonomy controlled under failure conditions
 
 ## Breadth of Demonstrations Included
 
@@ -251,9 +241,13 @@ Files:
 
 Purpose:
 
-- shows modification of an existing codebase
 - verifies brownfield classification
 - verifies impacted file detection
+- demonstrates the repository-reasoning step that would feed a later execution plan
+
+Current scope note:
+
+- the checked-in brownfield example emphasizes impact analysis on an existing codebase rather than full end-to-end code generation and validation
 
 ### Ambiguous Example
 
@@ -265,6 +259,9 @@ Purpose:
 - pauses when a requirement is vague
 - asks specific clarifying questions
 - resumes after simulated human clarification
+- decomposes the clarified work into a non-empty task DAG
+- generates implementation and tests
+- validates the resulting artifacts before completion
 
 Together, these examples show that the system is not limited to a single happy path.
 
@@ -280,11 +277,11 @@ Required scenario coverage:
 2. Brownfield requirement
 3. Ambiguous requirement
 
-Each scenario below explicitly demonstrates:
+Scenario coverage in the checked-in repo is split as follows:
 
-- task decomposition
-- multi-step orchestration
-- output validation
+- greenfield: full orchestration, generation, and validation
+- ambiguous: clarification plus downstream task execution and validation
+- brownfield: requirement classification and impact analysis on an existing codebase
 
 Scenario quick links in this document:
 
@@ -306,7 +303,7 @@ Clear run/evaluate instructions are provided in [Setup Instructions](#setup-inst
 Testing and quality-validation details are provided in [Testing Strategy](#testing-strategy), including:
 
 - correctness validation (unit + integration + API + graph flow)
-- output quality validation (validation checks and repair loop behavior)
+- output quality validation (validation checks and bounded repair-loop behavior)
 - known limitations and trade-offs for transparent evaluation
 
 ## Sample Inputs and Outputs

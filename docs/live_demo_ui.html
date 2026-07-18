@@ -1,0 +1,335 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Agentic SDE Live Demo Runner</title>
+  <style>
+    :root {
+      --bg: #f6f3ed;
+      --surface: #fffdf8;
+      --text: #1f2430;
+      --muted: #5b6578;
+      --accent: #0f766e;
+      --accent-2: #b45309;
+      --border: #dad3c4;
+      --ok: #166534;
+      --warn: #92400e;
+      --err: #b91c1c;
+      --shadow: 0 20px 60px rgba(32, 38, 49, 0.08);
+    }
+
+    * {
+      box-sizing: border-box;
+    }
+
+    body {
+      margin: 0;
+      font-family: "IBM Plex Sans", "Segoe UI", sans-serif;
+      color: var(--text);
+      background:
+        radial-gradient(1200px 400px at -20% -10%, rgba(15, 118, 110, 0.16), transparent 65%),
+        radial-gradient(900px 360px at 120% -20%, rgba(180, 83, 9, 0.16), transparent 70%),
+        var(--bg);
+      min-height: 100vh;
+    }
+
+    .wrap {
+      width: min(980px, 92vw);
+      margin: 28px auto;
+    }
+
+    .card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 16px;
+      box-shadow: var(--shadow);
+      overflow: hidden;
+    }
+
+    .header {
+      padding: 20px 24px;
+      background: linear-gradient(135deg, rgba(15, 118, 110, 0.14), rgba(180, 83, 9, 0.14));
+      border-bottom: 1px solid var(--border);
+    }
+
+    h1 {
+      margin: 0;
+      font-size: clamp(1.3rem, 1.1rem + 1vw, 2rem);
+      letter-spacing: 0.01em;
+    }
+
+    .sub {
+      margin-top: 8px;
+      color: var(--muted);
+      font-size: 0.95rem;
+    }
+
+    .grid {
+      display: grid;
+      gap: 16px;
+      padding: 20px 24px 24px;
+    }
+
+    .field {
+      display: grid;
+      gap: 8px;
+    }
+
+    label {
+      font-weight: 600;
+      font-size: 0.92rem;
+    }
+
+    textarea {
+      width: 100%;
+      min-height: 94px;
+      resize: vertical;
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 12px;
+      font: inherit;
+      color: inherit;
+      background: #fff;
+    }
+
+    .row {
+      display: flex;
+      gap: 12px;
+      flex-wrap: wrap;
+      align-items: center;
+    }
+
+    button {
+      border: none;
+      border-radius: 12px;
+      padding: 10px 14px;
+      font: inherit;
+      font-weight: 600;
+      cursor: pointer;
+      transition: transform 0.15s ease, opacity 0.15s ease;
+    }
+
+    button:hover {
+      transform: translateY(-1px);
+    }
+
+    button:disabled {
+      cursor: not-allowed;
+      opacity: 0.5;
+      transform: none;
+    }
+
+    .primary {
+      background: var(--accent);
+      color: #fff;
+    }
+
+    .secondary {
+      background: #ece8de;
+      color: var(--text);
+    }
+
+    .status {
+      margin-left: auto;
+      font-weight: 600;
+      font-size: 0.92rem;
+      color: var(--muted);
+    }
+
+    .status.ok {
+      color: var(--ok);
+    }
+
+    .status.warn {
+      color: var(--warn);
+    }
+
+    .status.err {
+      color: var(--err);
+    }
+
+    .log {
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 12px;
+      background: #fff;
+      font-family: "IBM Plex Mono", "Consolas", monospace;
+      max-height: 46vh;
+      overflow: auto;
+      white-space: pre-wrap;
+      line-height: 1.35;
+      font-size: 0.86rem;
+    }
+
+    .pill {
+      font-size: 0.8rem;
+      padding: 4px 8px;
+      border-radius: 999px;
+      border: 1px solid var(--border);
+      background: #fff;
+      color: var(--muted);
+    }
+
+    @media (max-width: 720px) {
+      .grid {
+        padding: 16px;
+      }
+      .status {
+        width: 100%;
+        margin-left: 0;
+      }
+    }
+  </style>
+</head>
+<body>
+  <main class="wrap">
+    <section class="card">
+      <header class="header">
+        <h1>Live Demo Runner</h1>
+        <div class="sub">Submit once, auto-progress the run, and approve or reject each gate from popup dialogs.</div>
+      </header>
+      <div class="grid">
+        <div class="field">
+          <label for="req">Requirement</label>
+          <textarea id="req">Build a scalable URL shortener service with APIs, persistence, and analytics.</textarea>
+        </div>
+
+        <div class="row">
+          <div class="field" style="flex: 1 1 280px; min-width: 220px;">
+            <label for="approveFeedback">Approve Feedback (optional)</label>
+            <textarea id="approveFeedback" style="min-height: 56px;">approved</textarea>
+          </div>
+          <div class="field" style="flex: 1 1 280px; min-width: 220px;">
+            <label for="rejectReason">Reject Reason</label>
+            <textarea id="rejectReason" style="min-height: 56px;">Rejected in live demo</textarea>
+          </div>
+        </div>
+
+        <div class="row">
+          <button id="runBtn" class="primary">Run Full Demo</button>
+          <button id="openSwaggerBtn" class="secondary">Open Swagger</button>
+          <span class="pill" id="runIdPill">run_id: -</span>
+          <span id="status" class="status">Idle</span>
+        </div>
+
+        <div class="field">
+          <label for="log">Execution Log</label>
+          <div id="log" class="log"></div>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <script>
+    const reqEl = document.getElementById("req");
+    const runBtn = document.getElementById("runBtn");
+    const openSwaggerBtn = document.getElementById("openSwaggerBtn");
+    const statusEl = document.getElementById("status");
+    const logEl = document.getElementById("log");
+    const runIdPillEl = document.getElementById("runIdPill");
+    const approveFeedbackEl = document.getElementById("approveFeedback");
+    const rejectReasonEl = document.getElementById("rejectReason");
+
+    function setStatus(text, type = "") {
+      statusEl.textContent = text;
+      statusEl.className = `status ${type}`.trim();
+    }
+
+    function appendLog(line) {
+      const ts = new Date().toLocaleTimeString();
+      logEl.textContent += `[${ts}] ${line}\n`;
+      logEl.scrollTop = logEl.scrollHeight;
+    }
+
+    function asPrettyJson(value) {
+      try {
+        if (typeof value === "string") {
+          return JSON.stringify(JSON.parse(value), null, 2);
+        }
+        return JSON.stringify(value, null, 2);
+      } catch {
+        return String(value);
+      }
+    }
+
+    async function postJson(url, body) {
+      const response = await fetch(url, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(body),
+      });
+      if (!response.ok) {
+        const text = await response.text();
+        throw new Error(`${response.status} ${response.statusText}: ${text}`);
+      }
+      return response.json();
+    }
+
+    async function runDemoFlow() {
+      const text = reqEl.value.trim();
+      if (!text) {
+        alert("Please enter a requirement first.");
+        return;
+      }
+
+      runBtn.disabled = true;
+      logEl.textContent = "";
+      runIdPillEl.textContent = "run_id: -";
+      setStatus("Submitting requirement...", "warn");
+
+      try {
+        const created = await postJson("/requirements", { text });
+        const runId = created.run_id;
+        runIdPillEl.textContent = `run_id: ${runId}`;
+        appendLog(`Created run ${runId}; initial status=${created.status}`);
+
+        let current = created;
+        while (current.status === "awaiting_human") {
+          const payloadText = asPrettyJson(current.review_payload || {});
+          appendLog("Human gate reached. Review payload:\n" + payloadText);
+
+          const approve = confirm(
+            "Human Approval Gate\n\nSelect OK to APPROVE, or Cancel to REJECT.\n\nPreview:\n" +
+            payloadText.slice(0, 1400)
+          );
+
+          if (approve) {
+            const feedback = (approveFeedbackEl.value || "approved").trim() || "approved";
+            appendLog(`Submitting approval: ${feedback}`);
+            current = await postJson(`/runs/${runId}/approve`, { feedback });
+            appendLog(`Post-approve status=${current.status}`);
+          } else {
+            const reason = (rejectReasonEl.value || "Rejected in live demo").trim() || "Rejected in live demo";
+            appendLog(`Submitting rejection: ${reason}`);
+            current = await postJson(`/runs/${runId}/reject`, { reason });
+            appendLog(`Post-reject status=${current.status}`);
+            break;
+          }
+        }
+
+        if (current.status === "completed") {
+          setStatus("Completed", "ok");
+          appendLog("Run completed successfully.");
+        } else if (current.status === "rejected") {
+          setStatus("Rejected", "err");
+          appendLog("Run rejected by user decision.");
+        } else {
+          setStatus(`Finished with status: ${current.status}`, "warn");
+          appendLog("Run exited gate loop with non-terminal status.");
+        }
+      } catch (err) {
+        setStatus("Error", "err");
+        appendLog("Error: " + (err instanceof Error ? err.message : String(err)));
+      } finally {
+        runBtn.disabled = false;
+      }
+    }
+
+    runBtn.addEventListener("click", runDemoFlow);
+    openSwaggerBtn.addEventListener("click", () => {
+      window.open("/docs", "_blank", "noopener,noreferrer");
+    });
+  </script>
+</body>
+</html>

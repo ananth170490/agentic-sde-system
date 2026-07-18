@@ -47,7 +47,7 @@ class TestGenAgent:
 		normalized_allowed = {self._normalize_rel_path(path) for path in task.owned_files}
 		for file_path in response.files:
 			normalized = self._normalize_rel_path(file_path)
-			if normalized not in normalized_allowed and not self._is_allowed_test_file(normalized):
+			if normalized not in normalized_allowed:
 				raise ValueError(
 					f"TestGenAgent attempted write outside owned_files: '{file_path}' not in {sorted(normalized_allowed)}"
 				)
@@ -85,10 +85,3 @@ class TestGenAgent:
 	def _slugify(self, text: str) -> str:
 		slug = re.sub(r"[^a-z0-9]+", "-", text.lower()).strip("-")
 		return slug[:80] or "generated-project"
-
-	def _is_allowed_test_file(self, normalized_path: str) -> bool:
-		return (
-			normalized_path.startswith("tests/")
-			or normalized_path.startswith("test_")
-			or "/test_" in normalized_path
-		)

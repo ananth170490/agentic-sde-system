@@ -370,9 +370,9 @@ In this project that means:
 - persistence and recovery
 - risks and limitations clearly documented
 
-## Repair Loop: Strongest Evidence of Error Handling
+## Repair Loop: Error-Handling Design
 
-One of the strongest pieces of evidence in this project is the repair loop.
+One of the strongest architectural features in this project is the repair loop.
 
 What it proves:
 
@@ -388,22 +388,12 @@ This behavior is implemented across:
 - [orchestrator/agents/validator.py](../orchestrator/agents/validator.py)
 - [orchestrator/graph.py](../orchestrator/graph.py)
 
-Evidence from an intentional failure experiment:
-
-```text
-Validation history:
-  [1] task=calc-001 passed=False issues=['tests/test_calc.py::test_add']
-  [2] task=calc-001 passed=True issues=[]
-
-Task retry_count=1, status=TaskStatus.DONE, output_summary=Validated successfully
-REPAIR_LOOP_CONFIRMED: first validation failed, repair retried, later validation passed.
-```
-
 Why this matters:
 
 - it shows cross-step coordination
 - it shows validation-driven recovery
 - it proves the system is more than prompt chaining
+- it keeps automation bounded when quality checks fail
 
 ## Example Scenarios Included in the Repo
 
@@ -435,6 +425,10 @@ What it demonstrates:
 - existing codebase inspection
 - impacted file identification for write endpoints
 
+Current scope note:
+
+- this checked-in example focuses on brownfield reasoning and impact analysis rather than full code generation and validation
+
 ### Ambiguous Example
 
 Files:
@@ -448,6 +442,8 @@ What it demonstrates:
 - pause at clarify gate
 - specific clarifying questions in review payload
 - resume after human clarification
+- non-empty task decomposition after clarification
+- generated implementation/tests and validation before completion
 
 ## Testing Strategy in Simple Terms
 

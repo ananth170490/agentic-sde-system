@@ -214,6 +214,10 @@ What it demonstrates:
 - repository reasoning
 - impacted file detection before implementation planning
 
+Current scope note:
+
+- the checked-in brownfield example focuses on impact analysis rather than a full brownfield generation-and-validation loop
+
 Observed behavior during validation:
 
 - the run classified the request as brownfield
@@ -229,6 +233,8 @@ What it demonstrates:
 - explicit clarifying questions
 - pause and resume behavior
 - plan approval and merge approval gates
+- dependency-aware task execution after clarification
+- generated code/tests plus validator execution
 - final completion after human feedback
 
 Observed behavior during validation:
@@ -260,11 +266,11 @@ Required scenario coverage:
 2. Brownfield requirement
 3. Ambiguous requirement
 
-For each example below, the output demonstrates:
+Example coverage in the checked-in repo is strongest in the greenfield and ambiguous flows:
 
-- task decomposition
-- multi-step orchestration
-- output validation
+- greenfield: task decomposition, multi-step orchestration, and output validation
+- ambiguous: clarification followed by task decomposition, execution, and validation
+- brownfield: requirement classification plus repository impact analysis
 
 ### 1. Greenfield Requirement
 
@@ -285,7 +291,7 @@ Sample output highlights:
 	- `intake -> architecture -> task_decompose -> plan_review -> execute_dag -> risk_docs -> merge_review -> completed`
 - Output validation evidence:
 	- validator executes `pytest`, `py_compile`, and `pyflakes`
-	- failing tasks are retried through bounded repair loop
+	- repair logic is wired into orchestration with bounded retries on failed tasks
 
 Sample output (representative):
 
