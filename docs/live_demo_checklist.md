@@ -12,7 +12,7 @@ Assumptions:
 Repository root:
 
 ```bash
-cd "/Users/ananth/Desktop/Terraform/Assignment - Agentic software engineer/agentic-sde-system"
+cd "/Users/ananth/Desktop/agentic-sde-system"
 ```
 
 ## Demo Strategy

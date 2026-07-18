@@ -270,6 +270,47 @@ Purpose:
 
 Together, these examples show that the system is not limited to a single happy path.
 
+## Evaluator Checklist Mapping
+
+This section mirrors the same checklist structure used in the submission package for consistency in interview/demo conversations.
+
+### A. Sample Inputs and Outputs
+
+Required scenario coverage:
+
+1. Greenfield requirement
+2. Brownfield requirement
+3. Ambiguous requirement
+
+Each scenario below explicitly demonstrates:
+
+- task decomposition
+- multi-step orchestration
+- output validation
+
+Scenario quick links in this document:
+
+- Greenfield sample: [Greenfield Requirement](#1-greenfield-requirement)
+- Brownfield sample: [Brownfield Requirement](#2-brownfield-requirement)
+- Ambiguous sample: [Ambiguous Requirement](#3-ambiguous-requirement)
+
+### B. Setup Instructions
+
+Clear run/evaluate instructions are provided in [Setup Instructions](#setup-instructions), including:
+
+- environment setup
+- provider selection
+- API and script-based execution
+- evaluation checklist for reviewers
+
+### C. Testing Approach
+
+Testing and quality-validation details are provided in [Testing Strategy](#testing-strategy), including:
+
+- correctness validation (unit + integration + API + graph flow)
+- output quality validation (validation checks and repair loop behavior)
+- known limitations and trade-offs for transparent evaluation
+
 ## Sample Inputs and Outputs
 
 This section provides reviewer-friendly sample inputs and outputs for all three required scenario types.
@@ -596,7 +637,7 @@ This section provides clear, step-by-step instructions to run and evaluate the s
 
 From terminal:
 
-cd "/Users/ananth/Desktop/Terraform/Assignment - Agentic software engineer/agentic-sde-system"
+cd "/Users/ananth/Desktop/agentic-sde-system"
 
 ### 3. Create and Activate Virtual Environment
 
