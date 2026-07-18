@@ -34,6 +34,17 @@ A simple code-generation prompt can produce output, but it cannot reliably:
 
 This system handles those concerns explicitly.
 
+## Assignment Checklist Mapping
+
+1. Understand requirements: intake parsing + ambiguity detection.
+2. Decompose work: structured task DAG with dependencies.
+3. Orchestrate multi-step flow: phase routing with gate-based control.
+4. Generate outputs: architecture, code, tests, and docs.
+5. Validate outputs: runtime/static checks with retry behavior.
+6. Control risk: explicit risk/trade-off/failure reasoning in final summary.
+7. Controlled autonomy: agents execute, humans approve critical checkpoints.
+8. Final structured output: implementation rationale, artifacts, risks, assumptions.
+
 ## Core Concepts
 
 ## 1. RunState (Single Source of Truth)
@@ -117,6 +128,10 @@ Open:
 - run script: `examples/ambiguous_run/run_ambiguous.py`
 - run id: `f64e1021-6402-4a2d-a3dd-f2bd098d1aad`
 - result: completed via safe fallback, no raw provider HTTP string in summary
+
+Mandatory use case trace:
+- Requirement: "Build a scalable URL shortener service with APIs, persistence, and analytics."
+- Demonstrated via `examples/greenfield_run/run_url_shortener.py`.
 
 ## Reviewer Demo Sequence
 

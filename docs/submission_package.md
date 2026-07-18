@@ -17,6 +17,32 @@ The implementation supports real-provider operation (OpenRouter), deterministic 
 
 Provide a complete, evaluator-ready mapping of implemented capabilities, runtime behavior, and validated scenario evidence.
 
+## Core Requirements Coverage Matrix
+
+1. Requirement understanding
+- Intent interpretation and ambiguity handling via structured intake processing.
+
+2. Task decomposition
+- Actionable dependency-aware task graph (`TaskDAG`) with execution sequencing.
+
+3. Brownfield codebase reasoning
+- Impacted services/modules/files discovered prior to downstream planning.
+
+4. Workflow orchestration
+- Multi-step, state-driven execution with approval gates, retries, and recovery behavior.
+
+5. Engineering output generation
+- Cohesive outputs including code, API/schema artifacts, tests, and supporting documentation.
+
+6. Validation and risk control
+- Validator pipeline plus risk/trade-off/failure reporting in final summaries.
+
+7. Controlled autonomy
+- Agents execute independently; humans gate clarify/plan/merge decisions.
+
+8. Final output
+- Structured engineering summary with implementation rationale, artifacts, risks, and limitations.
+
 ## System Workflow
 
 ## 1. Requirement Understanding
@@ -181,6 +207,23 @@ Failure handling:
 - terminal `rejected` state on unrecoverable execution
 - final engineering summary preserved for auditability
 
+## Deliverables Coverage Matrix
+
+1. Working prototype
+- API + orchestration graph + runnable examples for requirement-to-output transformation.
+
+2. Architecture overview
+- Detailed architecture, flow, and design rationale in `docs/architecture.md`.
+
+3. Example scenarios
+- Greenfield, brownfield, ambiguous coverage with artifacts and summary excerpts.
+
+4. Setup instructions
+- Run/evaluation setup in `README.md` and `docs/live_demo_checklist.md`.
+
+5. Testing approach
+- Demonstrated by test suite and task-level validation strategy documented above.
+
 ## Reviewer Demo Sequence
 
 - one-click UI: `http://localhost:8000/live-demo`
@@ -204,3 +247,10 @@ This submission demonstrates not only code generation, but disciplined engineeri
 - validation-driven quality control
 - human governance gates
 - resilient and reviewer-safe behavior under provider faults
+
+Expectation alignment:
+
+- production-grade system design fundamentals
+- multi-step lifecycle orchestration ownership
+- explicit output-quality and validation accountability
+- clear and defensible technical reasoning

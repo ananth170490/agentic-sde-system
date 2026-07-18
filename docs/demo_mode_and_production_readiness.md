@@ -24,6 +24,8 @@ OPENROUTER_MODEL=openai/gpt-4o-mini
 DEMO_MODE=false
 ```
 
+Important: provider model selection belongs in `OPENROUTER_MODEL`. Do not place a model id in `OPENROUTER_BASE_URL`.
+
 Optional metadata:
 
 ```env
@@ -94,6 +96,8 @@ curl -s -X POST http://127.0.0.1:8000/runs/<RUN_ID>/approve \
 Repeat approval at next gate until completion.
 
 ## Production Readiness Plan
+
+This plan supports the assignment expectation of production-grade engineering quality: reliability, safety, observability, and defensible operational behavior.
 
 ## 1. Reliability and API Contracts
 

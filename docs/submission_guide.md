@@ -168,6 +168,32 @@ Execution quality characteristics:
 - terminal rejection on unrecoverable failures
 - engineering-grade failure summary instead of ambiguous API 500 outcomes
 
+## Deliverables Mapping
+
+1. Working prototype
+- Runnable orchestrator API and scripts that accept requirements and produce structured engineering outputs.
+
+2. Architecture overview
+- Component model, execution flow, and design rationale are documented in `docs/architecture.md`.
+
+3. Example scenarios
+- Greenfield, brownfield, and ambiguous scenarios are provided with sample evidence in this guide.
+
+4. Setup instructions
+- Startup and demo paths are documented in `README.md` and `docs/live_demo_checklist.md`.
+
+5. Testing approach
+- Runtime/static validation strategy and known resilience behavior are documented in this guide.
+
+## Evaluation Criteria Mapping
+
+- End-to-end workflow completeness: demonstrated by phase-based orchestration from intake to final summary.
+- Strength of design and architecture: demonstrated by agent/tool separation and typed persisted state.
+- Depth of decomposition/orchestration: demonstrated by dependency-aware DAG execution and bounded repairs.
+- Output quality and realism: demonstrated by generated artifacts and scenario-specific summaries.
+- Validation and risk management effectiveness: demonstrated by validator checks and risk/trade-off sections.
+- Clarity and defensibility: demonstrated by structured review payloads, explicit gates, and persisted run history.
+
 ## Reviewer Demo Sequence
 
 1. Run `pytest -q`.

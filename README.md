@@ -30,6 +30,89 @@ the system executes a full SDLC-style pipeline:
 9. Risk documentation and engineering summary
 10. Merge approval gate and finalization
 
+## Interview Assignment Alignment
+
+### Objective
+
+This prototype is built to transform a software requirement into a reviewable engineering outcome through end-to-end SDLC orchestration, not chatbot-style Q and A.
+
+### Scope
+
+- Greenfield scenarios: new feature/system development
+- Brownfield scenarios: enhancements, refactoring, and bug-fix style updates
+- Test and documentation improvements as first-class workflow outputs
+- Well-defined and ambiguous requirement handling
+
+### Core Requirements Coverage
+
+1. Requirement understanding
+- Interprets intent, ambiguity, and implicit constraints in `RequirementSpec`.
+- Implemented in `orchestrator/agents/intake.py`.
+
+2. Task decomposition
+- Produces structured `TaskDAG` with dependencies and execution sequence.
+- Implemented in `orchestrator/agents/task_decomposer.py` and `orchestrator/state.py`.
+
+3. Codebase reasoning (brownfield)
+- Identifies impacted files/modules and likely change surface.
+- Implemented in `orchestrator/agents/codebase_reasoning.py` and `orchestrator/tools/repo_index.py`.
+
+4. Workflow orchestration
+- Coordinates multi-step execution with phase routing, dependency gating, and retries.
+- Implemented in `orchestrator/graph.py`.
+
+5. Engineering output generation
+- Produces code changes, API/schema content, tests, and supporting documentation.
+- Implemented across `orchestrator/agents/architect.py`, `orchestrator/agents/code_gen.py`, and `orchestrator/agents/test_gen.py`.
+
+6. Validation and risk control
+- Validates using `pytest`, `py_compile`, and `pyflakes`; records risks and trade-offs.
+- Implemented in `orchestrator/agents/validator.py` and `orchestrator/agents/risk_docs.py`.
+
+7. Controlled autonomy
+- Agents execute independently across phases while humans approve clarify/plan/merge gates.
+- Implemented in `orchestrator/gates/human_approval.py` and `orchestrator/api/main.py`.
+
+8. Final structured output
+- Emits engineering summary sections: implementation rationale, artifacts, risks/trade-offs/validation, assumptions.
+- Implemented in `orchestrator/agents/risk_docs.py`.
+
+### Deliverables Coverage
+
+1. Working prototype
+- Runnable API + scripts that accept requirements and produce structured outputs.
+
+2. Architecture overview
+- See `docs/architecture.md` for components, control flow, and design decisions.
+
+3. Example scenarios
+- Greenfield: `examples/greenfield_run/run_url_shortener.py`
+- Brownfield: `examples/brownfield_run/run_add_auth.py`
+- Ambiguous: `examples/ambiguous_run/run_ambiguous.py`
+
+4. Setup instructions
+- This README and `docs/live_demo_checklist.md` provide run/evaluation steps.
+
+5. Testing approach
+- See "Testing" in this README and quality details in `docs/submission_guide.md`.
+
+### Mandatory Use Case Coverage
+
+Requirement:
+
+> Build a scalable URL shortener service with APIs, persistence, and analytics.
+
+The system demonstrates requirement analysis, decomposition, architecture planning, code/test generation, and engineering summary output for this use case via `examples/greenfield_run/run_url_shortener.py`.
+
+### Evaluation Criteria Traceability
+
+- End-to-end completeness: phase-routed orchestration from intake to final summary.
+- System design strength: explicit separation of agents, tools, state, and gates.
+- Decomposition and orchestration depth: dependency-aware DAG with bounded repairs.
+- Output quality and realism: code/test/docs artifacts plus structured summaries.
+- Validation and risk management: test/static checks with risk and limitation reporting.
+- Clarity and defensibility: persisted run state and reviewer-visible payloads/summaries.
+
 ## Repository Layout
 
 - `orchestrator/`: graph, agents, API, tools, and gates
@@ -54,6 +137,8 @@ MODEL_PROVIDER=openrouter
 OPENROUTER_API_KEY=<your_openrouter_key>
 OPENROUTER_MODEL=anthropic/claude-3.5-sonnet
 ```
+
+Important: set the model in `OPENROUTER_MODEL` (not `OPENROUTER_BASE_URL`).
 
 Optional provider metadata:
 

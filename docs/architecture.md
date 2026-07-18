@@ -83,6 +83,33 @@ flowchart TD
 - Per-run generated artifacts under `generated_projects/`
 - Final summary markdown for evaluator-friendly traceability
 
+## Assignment Requirement Mapping
+
+1. Requirement understanding
+- Intake node normalizes input into structured requirement data with ambiguity scoring.
+
+2. Task decomposition
+- Task decomposer emits dependency-aware DAG tasks with explicit execution order.
+
+3. Brownfield codebase reasoning
+- Brownfield route invokes repository indexing and impacted-area analysis before planning.
+
+4. Workflow orchestration
+- Graph routing coordinates clarify, planning, execution, risk docs, and merge gates.
+- Cross-step coordination is state-driven (`RunState`) rather than isolated node calls.
+
+5. Engineering output generation
+- Architecture, code, tests, and summaries are generated through dedicated specialized agents.
+
+6. Validation and risk control
+- Validator enforces runtime/static checks; risk docs summarize trade-offs and failure modes.
+
+7. Controlled autonomy
+- Human approval interrupts are built into clarify, plan, and merge checkpoints.
+
+8. Final structured output
+- Final summaries include implementation rationale, artifacts, risks/trade-offs/validation, and limitations.
+
 ## OpenRouter Integration Architecture
 
 OpenRouter is integrated via an OpenAI-compatible chat completion client in `orchestrator/tools/model_provider.py`.
@@ -115,6 +142,13 @@ Key guarantees in `execute_dag`:
 - rejection includes an engineering-grade final summary (not an opaque crash)
 
 This prevents silent hangs and improves reviewer confidence in operational behavior.
+
+## Why This Is Meaningful Orchestration (Not Linear Execution)
+
+- Execution order is dependency-driven by DAG readiness, not static prompt chaining.
+- Validation outcomes feed repair loops and alter subsequent execution behavior.
+- Gate decisions (approve/reject/feedback) modify trajectory and can stop or resume runs.
+- Brownfield and ambiguous requirements route into different phase paths before task execution.
 
 ## Crash Recovery and Resume
 
