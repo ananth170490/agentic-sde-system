@@ -1,4 +1,4 @@
-# Demo Mode and Production Readiness
+# Demo Mode
 
 ## Purpose
 
