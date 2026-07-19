@@ -30,8 +30,6 @@ the system executes a full SDLC-style pipeline:
 9. Risk documentation and engineering summary
 10. Merge approval gate and finalization
 
-## Interview Assignment Alignment
-
 ### Objective
 
 This prototype is built to transform a software requirement into a reviewable engineering outcome through end-to-end SDLC orchestration, not chatbot-style Q and A.
