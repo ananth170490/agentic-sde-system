@@ -81,3 +81,33 @@ def test_code_gen_sanitizes_placeholder_python_content(tmp_path) -> None:
     generated = files["src/middleware/jwt_auth.py"]
     assert "Auto-generated placeholder module" in generated
     assert "Task: auth-001 - Design JWT middleware" in generated
+
+
+def test_code_gen_prunes_unused_imports(tmp_path) -> None:
+    task = Task(
+        id="api-004",
+        title="Build URL API",
+        description="Implement API endpoints",
+        owned_files=["api/url_shortener_api.py"],
+    )
+    model = FakeModelProvider(
+        canned_response={
+            "files": {
+                "api/url_shortener_api.py": "import json\n\n\ndef build_response() -> dict[str, int]:\n    return {'ok': 1}\n",
+            }
+        }
+    )
+
+    agent = CodeGenAgent()
+    files = agent.run(
+        task=task,
+        spec=_spec(),
+        design=_design(),
+        context_from_dependencies="",
+        model=model,
+        project_dir=str(tmp_path / "generated"),
+    )
+
+    generated = files["api/url_shortener_api.py"]
+    assert "import json" not in generated
+    assert "build_response" in generated

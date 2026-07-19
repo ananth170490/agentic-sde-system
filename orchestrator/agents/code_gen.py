@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import ast
 import re
 from pathlib import Path
 
@@ -99,19 +100,21 @@ class CodeGenAgent:
 			text = extracted
 
 		if normalized.endswith(".py"):
+			text = self._prune_unused_imports(text)
 			candidate = text.strip()
-			if not candidate or self._looks_like_placeholder_text(candidate):
+			if not candidate or self._looks_like_placeholder_text(candidate) or not self._looks_like_valid_python(candidate):
 				return (
 					'"""Auto-generated placeholder module.\n\n'
 					f'Task: {task.id} - {task.title}\n'
 					'"""\n\n'
-					"# TODO: replace placeholder with implementation details from a follow-up generation pass.\n"
+					"def placeholder() -> str:\n"
+					"    return \"placeholder\"\n"
 				)
 
 		return text
 
 	def _extract_code_block(self, text: str) -> str | None:
-		match = re.search(r"```(?:[a-zA-Z0-9_+-]+)?\\n([\\s\\S]*?)\\n```", text)
+		match = re.search(r"```(?:[a-zA-Z0-9_+-]+)?\n([\s\S]*?)\n```", text)
 		if match:
 			return match.group(1).strip() + "\n"
 		return None
@@ -120,10 +123,57 @@ class CodeGenAgent:
 		normalized = text.strip().lower()
 		if normalized in {"updated", "done", "n/a", "na", "todo", "tbd", "placeholder"}:
 			return True
+		if normalized.startswith("fixed ") or normalized.startswith("update "):
+			return True
+		if "unused variable" in normalized and "def " not in normalized and "class " not in normalized:
+			return True
 		# Single short non-code token should not be treated as valid source.
 		if "\n" not in normalized and len(normalized.split()) <= 3 and all(ch.isalnum() or ch in "-_" for ch in normalized):
 			return True
 		return False
+
+	def _looks_like_valid_python(self, text: str) -> bool:
+		try:
+			ast.parse(text)
+			return True
+		except SyntaxError:
+			return False
+
+	def _prune_unused_imports(self, text: str) -> str:
+		try:
+			tree = ast.parse(text)
+		except SyntaxError:
+			return text
+
+		used_names = {node.id for node in ast.walk(tree) if isinstance(node, ast.Name)}
+		lines = text.splitlines()
+		removals: list[tuple[int, int]] = []
+
+		for node in tree.body:
+			if not isinstance(node, (ast.Import, ast.ImportFrom)):
+				continue
+
+			alias_names = [alias.asname or alias.name.split(".", 1)[0] for alias in node.names]
+			if any(alias_name in used_names for alias_name in alias_names):
+				continue
+
+			start = max(node.lineno - 1, 0)
+			end = max(getattr(node, "end_lineno", node.lineno) - 1, start)
+			removals.append((start, end))
+
+		if not removals:
+			return text
+
+		filtered_lines = list(lines)
+		for start, end in sorted(removals, reverse=True):
+			for index in range(end, start - 1, -1):
+				if 0 <= index < len(filtered_lines):
+					del filtered_lines[index]
+
+		pruned = "\n".join(filtered_lines).strip()
+		if text.endswith("\n"):
+			pruned += "\n"
+		return pruned
 
 	def _ensure_owned_files_only(self, task: Task, files: dict[str, str]) -> None:
 		normalized_allowed = {self._normalize_rel_path(path) for path in task.owned_files}

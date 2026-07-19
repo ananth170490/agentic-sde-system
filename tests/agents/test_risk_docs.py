@@ -66,3 +66,41 @@ def test_risk_docs_agent_writes_summary_and_contains_required_headers(tmp_path: 
     content = docs_file.read_text(encoding="utf-8")
     for header in REQUIRED_HEADERS:
         assert header in content
+
+
+def test_risk_docs_agent_synthesizes_summary_when_headers_missing(tmp_path: Path, monkeypatch) -> None:
+    monkeypatch.chdir(tmp_path)
+
+    model = FakeModelProvider(
+        canned_response={
+            "risks": ["Cache invalidation risk"],
+            "final_summary": "Model gave a short note without the required headers.",
+        }
+    )
+
+    run_state = RunState(
+        run_id="risk-docs-002",
+        requirement=RequirementSpec(
+            raw_text="Build a scalable URL shortener service with APIs, persistence, and analytics.",
+            category=RequirementCategory.GREENFIELD,
+            explicit_requirements=["Build URL shortener", "Provide APIs"],
+            implicit_requirements=["Scale horizontally"],
+            ambiguities=["SLOs missing"],
+            ambiguity_score=0.3,
+        ),
+        design=ArchitectureDesign(
+            components=["api", "service", "db"],
+            data_model="ShortLink(code, target)",
+            api_contract_yaml="openapi: 3.0.0\ninfo:\n  title: URL API\n  version: 1.0.0\npaths: {}",
+            tradeoffs=["counter vs hash"],
+        ),
+        current_phase="risk_docs",
+        status="running",
+    )
+
+    updated = RiskDocsAgent().run(run_state, model)
+
+    assert "Analyze and decompose the requirement" in updated.final_summary
+    assert "Design the architecture" in updated.final_summary
+    assert "Generate code, APIs, and tests" in updated.final_summary
+    assert "Provide trade-offs and a validation strategy" in updated.final_summary

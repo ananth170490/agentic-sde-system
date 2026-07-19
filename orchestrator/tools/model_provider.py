@@ -451,13 +451,347 @@ class OpenRouterModelProvider(_StructuredOutputMixin):
 		return str(content).strip()
 
 
-def build_model_provider_from_env() -> ModelProvider | OllamaModelProvider | OpenRouterModelProvider:
+class OpenAIModelProvider(_StructuredOutputMixin):
+	def __init__(
+		self,
+		api_key: str,
+		model_name: str = "gpt-4o-mini",
+		base_url: str = "https://api.openai.com/v1",
+	) -> None:
+		if not api_key:
+			raise ValueError("OPENAI_API_KEY is not set")
+
+		self._api_key = api_key
+		self._model_name = model_name
+		self._base_url = base_url.rstrip("/")
+
+	def complete_structured(
+		self,
+		system_prompt: str,
+		user_prompt: str,
+		response_model: type[ModelT],
+	) -> ModelT:
+		return self._complete_structured_with_retry(system_prompt, user_prompt, response_model)
+
+	def _invoke(self, system_prompt: str, user_prompt: str) -> str:
+		payload = {
+			"model": self._model_name,
+			"messages": [
+				{"role": "system", "content": system_prompt},
+				{"role": "user", "content": user_prompt},
+			],
+			"temperature": 0,
+		}
+
+		headers = {
+			"Content-Type": "application/json",
+			"Authorization": f"Bearer {self._api_key}",
+		}
+
+		data = json.dumps(payload).encode("utf-8")
+		req = request.Request(
+			url=f"{self._base_url}/chat/completions",
+			data=data,
+			headers=headers,
+			method="POST",
+		)
+		with request.urlopen(req) as response:
+			body = response.read().decode("utf-8")
+
+		parsed = json.loads(body)
+		choices = parsed.get("choices", [])
+		if not choices:
+			return ""
+
+		message = choices[0].get("message", {})
+		content = message.get("content", "")
+
+		if isinstance(content, str):
+			return content.strip()
+
+		if isinstance(content, list):
+			parts: list[str] = []
+			for part in content:
+				if isinstance(part, dict) and part.get("type") == "text":
+					text_value = part.get("text", "")
+					if isinstance(text_value, str):
+						parts.append(text_value)
+			return "\n".join(parts).strip()
+
+		return str(content).strip()
+
+
+class ScriptedModelProvider:
+	def _profile(self, user_prompt: str) -> str:
+		text = user_prompt.lower()
+		if "reporting faster" in text or "reports endpoint" in text:
+			return "ambiguous"
+		if "jwt" in text or "existing" in text or "brownfield" in text:
+			return "brownfield"
+		return "greenfield"
+
+	def _extract_owned_files(self, user_prompt: str) -> list[str]:
+		seen: list[str] = []
+		for token in user_prompt.replace('"', " ").replace("'", " ").split():
+			candidate = token.strip(",[](){}")
+			if "/" in candidate and candidate.endswith(".py") and candidate not in seen:
+				seen.append(candidate)
+		return seen
+
+	def _generated_files_payload(self, user_prompt: str) -> dict[str, str]:
+		owned = self._extract_owned_files(user_prompt)
+		if not owned:
+			owned = ["app/module.py"]
+
+		files: dict[str, str] = {}
+		for path in owned:
+			if path.startswith("tests/"):
+				test_name = path.rsplit("/", 1)[-1].replace(".py", "")
+				files[path] = (
+					"def test_" + test_name.replace("test_", "") + "() -> None:\n"
+					"    assert True\n"
+				)
+			else:
+				module_name = path.rsplit("/", 1)[-1].replace(".py", "")
+				files[path] = (
+					"from __future__ import annotations\n\n"
+					f"def {module_name}_placeholder() -> str:\n"
+					f"    return \"{module_name}\"\n"
+				)
+		return files
+
+	def _requirement_payload(self, profile: str, user_prompt: str) -> dict[str, Any]:
+		if profile == "ambiguous":
+			return {
+				"raw_text": "Make the reporting faster",
+				"category": "ambiguous",
+				"explicit_requirements": ["Make the reporting faster"],
+				"implicit_requirements": [
+					"Measure/report p95 latency for report endpoint",
+					"Define performance target and baseline",
+				],
+				"ambiguities": [
+					"Which report endpoint(s) are in scope?",
+					"What exact latency target defines faster?",
+					"What load profile and percentile should be optimized?",
+				],
+				"ambiguity_score": 0.82,
+			}
+		if profile == "brownfield":
+			return {
+				"raw_text": user_prompt[:300],
+				"category": "brownfield",
+				"explicit_requirements": ["Add JWT auth to existing write endpoints"],
+				"implicit_requirements": ["Preserve existing read endpoint behavior"],
+				"ambiguities": ["Token issuer/audience constraints are unspecified"],
+				"ambiguity_score": 0.35,
+			}
+		return {
+			"raw_text": "Build a scalable URL shortener service with APIs, persistence, and analytics.",
+			"category": "greenfield",
+			"explicit_requirements": [
+				"Build a scalable URL shortener service",
+				"Include APIs",
+				"Include persistence",
+				"Include analytics",
+			],
+			"implicit_requirements": [
+				"Use stateless API nodes",
+				"Track redirect events",
+				"Design for horizontal scaling",
+			],
+			"ambiguities": [
+				"Target throughput and latency SLO are unspecified",
+				"Analytics retention period is unspecified",
+			],
+			"ambiguity_score": 0.35,
+		}
+
+	def _architecture_payload(self, profile: str) -> dict[str, Any]:
+		if profile == "ambiguous":
+			return {
+				"components": ["reports-api", "report-cache", "metrics"],
+				"data_model": "ReportRequest, ReportResultCache",
+				"api_contract_yaml": "openapi: 3.0.0\\ninfo:\\n  title: Reports API\\n  version: 1.0.0\\npaths: {}",
+				"tradeoffs": [
+					"cache freshness vs latency: chose short TTL cache",
+					"sync compute vs precompute: chose selective precompute",
+				],
+			}
+		if profile == "brownfield":
+			return {
+				"components": ["existing-api", "auth-middleware", "policy-checks"],
+				"data_model": "users, roles, auth_tokens",
+				"api_contract_yaml": "openapi: 3.0.0\\ninfo:\\n  title: Brownfield Auth API\\n  version: 1.0.0\\npaths: {}",
+				"tradeoffs": ["middleware simplicity vs fine-grained policy engine"],
+			}
+		return {
+			"components": ["fastapi-api", "sqlite-store", "analytics-service"],
+			"data_model": "url_mappings, click_events",
+			"api_contract_yaml": "openapi: 3.0.3\\npaths:\\n  /api/v1/shorten: {}",
+			"tradeoffs": ["SQLite simplicity vs distributed DB scale"],
+		}
+
+	def _dag_payload(self, profile: str) -> dict[str, Any]:
+		if profile == "ambiguous":
+			return {
+				"tasks": [
+					{
+						"id": "perf-001",
+						"title": "Add reporting latency analyzer",
+						"description": "Implement p95 analyzer.",
+						"depends_on": [],
+						"status": "pending",
+						"owned_files": ["app/reporting.py", "tests/test_reporting.py"],
+						"output_summary": None,
+						"retry_count": 0,
+					},
+					{
+						"id": "perf-002",
+						"title": "Add bounded cache helper",
+						"description": "Implement small cache helper.",
+						"depends_on": ["perf-001"],
+						"status": "pending",
+						"owned_files": ["app/cache.py", "tests/test_cache.py"],
+						"output_summary": None,
+						"retry_count": 0,
+					},
+				],
+			}
+		if profile == "brownfield":
+			return {
+				"tasks": [
+					{
+						"id": "auth-001",
+						"title": "Add auth helper",
+						"description": "Add auth utility module.",
+						"depends_on": [],
+						"status": "pending",
+						"owned_files": ["app/auth.py", "tests/test_auth.py"],
+						"output_summary": None,
+						"retry_count": 0,
+					},
+					{
+						"id": "auth-002",
+						"title": "Integrate auth checks",
+						"description": "Add route-level auth checks.",
+						"depends_on": ["auth-001"],
+						"status": "pending",
+						"owned_files": ["app/main.py", "tests/test_routes.py"],
+						"output_summary": None,
+						"retry_count": 0,
+					},
+				],
+			}
+		return {
+			"tasks": [
+				{
+					"id": "core-001",
+					"title": "Implement core APIs",
+					"description": "Build shorten/resolve core.",
+					"depends_on": [],
+					"status": "pending",
+					"owned_files": ["app/store.py", "app/main.py", "tests/test_api_core.py"],
+					"output_summary": None,
+					"retry_count": 0,
+				},
+				{
+					"id": "analytics-002",
+					"title": "Add analytics endpoint",
+					"description": "Track clicks and analytics API.",
+					"depends_on": ["core-001"],
+					"status": "pending",
+					"owned_files": ["app/analytics.py", "tests/test_api_analytics.py"],
+					"output_summary": None,
+					"retry_count": 0,
+				},
+			],
+		}
+
+	def _risk_docs_payload(self, profile: str) -> dict[str, Any]:
+		if profile == "ambiguous":
+			return {
+				"risks": ["Cache staleness risk", "Insufficient baseline data risk"],
+				"final_summary": (
+					"## Implementation Plan and Rationale\n"
+					"Plan clarifies scope first, then executes reporting performance improvements via DAG tasks.\n\n"
+					"## Generated Artifacts\n"
+					"- app/reporting.py\n- app/cache.py\n- tests/test_reporting.py\n- tests/test_cache.py\n\n"
+					"## Risks, Trade-offs, and Validation Approach\n"
+					"Validate p95 latency with representative synthetic loads.\n\n"
+					"## Assumptions and Limitations\n"
+					"Assumes reports endpoint contract remains stable during optimization."
+				),
+			}
+		if profile == "brownfield":
+			return {
+				"risks": ["Auth middleware regression risk"],
+				"final_summary": (
+					"## Implementation Plan and Rationale\n"
+					"Brownfield flow identified impacted areas and executed auth hardening tasks in dependency order.\n\n"
+					"## Generated Artifacts\n"
+					"- app/auth.py\n- app/main.py\n- tests/test_auth.py\n- tests/test_routes.py\n\n"
+					"## Risks, Trade-offs, and Validation Approach\n"
+					"Validate protected write-route behavior and preserve non-protected flows.\n\n"
+					"## Assumptions and Limitations\n"
+					"Assumes existing API contracts remain backward-compatible."
+				),
+			}
+		return {
+			"risks": ["SQLite single-node persistence risk"],
+			"final_summary": (
+				"## Implementation Plan and Rationale\n"
+				"Mandatory greenfield URL shortener requirement executed through intake, architecture, DAG execution, and validation.\n\n"
+				"## Generated Artifacts\n"
+				"- app/store.py\n- app/main.py\n- app/analytics.py\n- tests/test_api_core.py\n- tests/test_api_analytics.py\n\n"
+				"## Risks, Trade-offs, and Validation Approach\n"
+				"Trade-offs include simple persistence for prototype speed; validation uses pytest, py_compile, and pyflakes.\n\n"
+				"## Assumptions and Limitations\n"
+				"Assumes moderate traffic and prototype deployment constraints."
+			),
+		}
+
+	def complete_structured(
+		self,
+		system_prompt: str,
+		user_prompt: str,
+		response_model: type[ModelT],
+	) -> ModelT:
+		del system_prompt
+		name = response_model.__name__
+		profile = self._profile(user_prompt)
+
+		if name == "RequirementSpec":
+			payload = self._requirement_payload(profile, user_prompt)
+		elif name == "ArchitectureDesign":
+			payload = self._architecture_payload(profile)
+		elif name == "TaskDAG":
+			payload = self._dag_payload(profile)
+		elif name == "_GeneratedFilesResponse" or name == "_GeneratedTestsResponse":
+			payload = {"files": self._generated_files_payload(user_prompt)}
+		elif name == "_RiskDocsResponse":
+			payload = self._risk_docs_payload(profile)
+		else:
+			payload = response_model.model_json_schema().get("examples", [{}])[0] if response_model.model_json_schema().get("examples") else {}
+
+		return response_model.model_validate(payload)
+
+
+def build_model_provider_from_env() -> ModelProvider | OllamaModelProvider | OpenRouterModelProvider | OpenAIModelProvider | ScriptedModelProvider:
 	load_dotenv()
 	provider = os.getenv("MODEL_PROVIDER", "anthropic").strip().lower()
+	if provider == "scripted":
+		return ScriptedModelProvider()
 	if provider == "ollama":
 		return OllamaModelProvider(
 			model_name=os.getenv("OLLAMA_MODEL", "llama3.2:3b"),
 			base_url=os.getenv("OLLAMA_BASE_URL", "http://127.0.0.1:11434"),
+		)
+	if provider == "openai":
+		return OpenAIModelProvider(
+			api_key=os.getenv("OPENAI_API_KEY", ""),
+			model_name=os.getenv("OPENAI_MODEL", "gpt-4o-mini"),
+			base_url=os.getenv("OPENAI_BASE_URL", "https://api.openai.com/v1"),
 		)
 	if provider == "openrouter":
 		return OpenRouterModelProvider(

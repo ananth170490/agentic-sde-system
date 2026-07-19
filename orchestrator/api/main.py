@@ -7,7 +7,7 @@ from pathlib import Path
 from uuid import uuid4
 
 from fastapi import Depends, FastAPI, HTTPException
-from fastapi.responses import FileResponse
+from fastapi.responses import HTMLResponse
 from pydantic import BaseModel
 
 from orchestrator.graph import OrchestrationGraph
@@ -236,7 +236,22 @@ def get_orchestration_graph() -> OrchestrationGraph:
 
 app = FastAPI(title="Agentic SDE Orchestrator API")
 
-_LIVE_DEMO_UI_PATH = (Path.cwd() / "docs" / "live_demo_ui.html").resolve()
+_LIVE_DEMO_UI_PATH = (Path(__file__).resolve().parents[2] / "docs" / "live_demo_ui.html").resolve()
+_LIVE_DEMO_UI_FALLBACK = """<!DOCTYPE html>
+<html lang="en">
+<head>
+	<meta charset="utf-8" />
+	<meta name="viewport" content="width=device-width, initial-scale=1" />
+	<title>Agentic SDE Live Demo Runner</title>
+</head>
+<body>
+	<main>
+		<h1>Agentic SDE Live Demo Runner</h1>
+		<p>The live demo UI asset could not be loaded from disk, but the backend is reachable.</p>
+	</main>
+</body>
+</html>
+"""
 
 
 @app.post("/requirements")
@@ -341,7 +356,7 @@ def reject_run(
 
 
 @app.get("/live-demo", include_in_schema=False)
-def live_demo_ui() -> FileResponse:
-	if not _LIVE_DEMO_UI_PATH.exists():
-		raise HTTPException(status_code=404, detail="Live demo UI not found")
-	return FileResponse(_LIVE_DEMO_UI_PATH)
+def live_demo_ui() -> HTMLResponse:
+	if _LIVE_DEMO_UI_PATH.exists():
+		return HTMLResponse(_LIVE_DEMO_UI_PATH.read_text(encoding="utf-8"))
+	return HTMLResponse(_LIVE_DEMO_UI_FALLBACK)

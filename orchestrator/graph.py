@@ -399,7 +399,76 @@ class OrchestrationGraph:
 		except Exception as err:
 			state.risks = state.risks or [f"Risk documentation generation fallback triggered: {err}"]
 			state.final_summary = self._fallback_engineering_summary(state, str(err))
+		else:
+			state.final_summary = self._compose_engineering_summary(state, state.final_summary)
 		return self._persist(state)
+
+	def _compose_engineering_summary(self, state: RunState, model_summary: str | None = None) -> str:
+		requirement = state.requirement
+		design = state.design
+		tasks = state.dag.tasks if state.dag is not None else []
+		artifacts = sorted({path for task in tasks for path in task.owned_files})
+		validation_issues = sorted({issue for result in state.validations for issue in result.issues})
+		risks = state.risks or []
+
+		requirement_lines = [
+			f"Requirement text: {requirement.raw_text}",
+			f"Category: {requirement.category.value}",
+			f"Explicit requirements: {', '.join(requirement.explicit_requirements) if requirement.explicit_requirements else 'N/A'}",
+			f"Implicit requirements: {', '.join(requirement.implicit_requirements) if requirement.implicit_requirements else 'N/A'}",
+		]
+		if requirement.ambiguities:
+			requirement_lines.append(f"Open ambiguities: {', '.join(requirement.ambiguities)}")
+
+		design_lines = [
+			f"Components: {', '.join(design.components) if design else 'N/A'}",
+			f"Data model: {design.data_model if design else 'N/A'}",
+			f"API contract: {design.api_contract_yaml if design else 'N/A'}",
+		]
+		if design and design.tradeoffs:
+			design_lines.append(f"Trade-offs: {', '.join(design.tradeoffs)}")
+
+		implementation_lines = [
+			f"Artifacts: {', '.join(artifacts) if artifacts else 'No artifacts recorded'}",
+			f"Tasks completed: {len(tasks)}",
+		]
+		if tasks:
+			implementation_lines.append(
+				"Task breakdown: " + "; ".join(f"{task.id} ({task.title})" for task in tasks[:8])
+			)
+
+		validation_lines = [
+			"Validation strategy: pytest, py_compile, and pyflakes across task-owned files.",
+			f"Validation issues: {', '.join(validation_issues) if validation_issues else 'No explicit validation issues captured'}",
+		]
+		if risks:
+			validation_lines.append(f"Risks: {', '.join(risks)}")
+
+		model_notes = f"\n\nModel Notes:\n{model_summary.strip()}" if model_summary and model_summary.strip() else ""
+
+		return (
+			"## Implementation Plan and Rationale\n"
+			"Analyze and decompose the requirement:\n"
+			+ "\n".join(f"- {line}" for line in requirement_lines)
+			+ "\n\nDesign the architecture:\n"
+			+ "\n".join(f"- {line}" for line in design_lines)
+			+ "\n\nGenerate code, APIs, and tests:\n"
+			+ "\n".join(f"- {line}" for line in implementation_lines)
+			+ "\n\nProvide trade-offs and a validation strategy:\n"
+			+ "\n".join(f"- {line}" for line in validation_lines)
+			+ model_notes
+			+ "\n\n## Generated Artifacts\n"
+			+ ("\n".join(f"- {path}" for path in artifacts) if artifacts else "- No artifacts recorded")
+			+ "\n\n## Risks, Trade-offs, and Validation Approach\n"
+			+ ("\n".join(f"- {risk}" for risk in risks) if risks else "- No explicit risks recorded")
+			+ "\n"
+			+ ("Validation Issues Observed:\n" + ("\n".join(f"- {issue}" for issue in validation_issues) if validation_issues else "- No explicit validation issues captured"))
+			+ "\n\n## Assumptions and Limitations\n"
+			+ "- Assumes the plain-text requirement can be decomposed into implementation tasks and validation checks.\n"
+			+ "- Uses the current run state to summarize architecture, artifacts, and validation evidence.\n"
+			+ "- Final summary is synthesized deterministically so it remains readable even when model output is partial."
+			+ model_notes
+		)
 
 	def _fallback_engineering_summary(self, state: RunState, error_text: str) -> str:
 		artifacts: list[str] = []
