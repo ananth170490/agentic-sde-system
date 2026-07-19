@@ -2,7 +2,7 @@
 
 ## Objective
 
-This guide provides a reviewer-friendly walkthrough of the implemented system, including architecture, orchestration behavior, validation strategy, OpenRouter integration, and verified output artifacts.
+This guide provides a reviewer-friendly walkthrough of the implemented system, including architecture, orchestration behavior, validation strategy, OpenAI integration, and verified output artifacts.
 
 ## System Workflow
 
@@ -26,14 +26,14 @@ Core implementation locations:
 - `orchestrator/tools/repo_index.py`
 - `orchestrator/tools/sandbox_runner.py`
 
-## OpenRouter Runtime Approach
+## OpenAI Runtime Approach
 
 Recommended provider config:
 
 ```env
-MODEL_PROVIDER=openrouter
-OPENROUTER_API_KEY=<your_openrouter_key>
-OPENROUTER_MODEL=openai/gpt-4o-mini
+MODEL_PROVIDER=openai
+OPENAI_API_KEY=<your_openai_key>
+OPENAI_MODEL=gpt-4o-mini
 DEMO_MODE=false
 ```
 

@@ -79,7 +79,7 @@ Failures trigger repair loops up to a bounded retry limit.
 
 ## 4. Provider Resilience
 
-OpenRouter and other providers can fail due to quota, billing, network, or schema mismatch. The system now uses schema-safe fallbacks so runs remain coherent and summaries stay reviewer-friendly.
+OpenAI and other providers can fail due to quota, billing, network, or schema mismatch. The system now uses schema-safe fallbacks so runs remain coherent and summaries stay reviewer-friendly.
 
 Sanitized example:
 
@@ -87,14 +87,14 @@ Sanitized example:
 Provider fallback used because the model provider request was blocked by quota/billing limits. Check provider credits and retry the run.
 ```
 
-## OpenRouter Runtime Approach
+## OpenAI Runtime Approach
 
 `.env` example:
 
 ```env
-MODEL_PROVIDER=openrouter
-OPENROUTER_API_KEY=<your_openrouter_key>
-OPENROUTER_MODEL=openai/gpt-4o-mini
+MODEL_PROVIDER=openai
+OPENAI_API_KEY=<your_openai_key>
+OPENAI_MODEL=gpt-4o-mini
 DEMO_MODE=false
 ```
 

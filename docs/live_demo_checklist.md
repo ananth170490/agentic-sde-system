@@ -1,22 +1,22 @@
 # Live Demo Checklist
 
-This checklist is tuned for the current validated system state, including OpenRouter provider behavior, human approval gates, fallback resilience, and engineering-grade final summaries.
+This checklist is tuned for the current validated system state, including OpenAI provider behavior, human approval gates, fallback resilience, and engineering-grade final summaries.
 
 ## Current Baseline
 
 - test baseline: `18 passed, 1 warning`
 - API/UI endpoint: `http://localhost:8000/live-demo`
-- preferred provider mode: OpenRouter
+- preferred provider mode: OpenAI
 - fallback mode: deterministic demo mode (`DEMO_MODE=true`)
 
-## Environment Setup (OpenRouter)
+## Environment Setup (OpenAI)
 
 Set `.env`:
 
 ```env
-MODEL_PROVIDER=openrouter
-OPENROUTER_API_KEY=<your_openrouter_key>
-OPENROUTER_MODEL=openai/gpt-4o-mini
+MODEL_PROVIDER=openai
+OPENAI_API_KEY=<your_openai_key>
+OPENAI_MODEL=gpt-4o-mini
 DEMO_MODE=false
 ```
 
@@ -135,7 +135,7 @@ Provider fallback used because the model provider request was blocked by quota/b
 
 ## Backup Plan
 
-If OpenRouter is unavailable:
+If OpenAI is unavailable:
 
 ```env
 DEMO_MODE=true

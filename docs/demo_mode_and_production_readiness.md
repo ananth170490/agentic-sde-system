@@ -4,7 +4,7 @@
 
 This document defines two operating modes:
 
-1. Real-provider mode (OpenRouter-first) for realistic live demonstrations.
+1. Real-provider mode (OpenAI-first) for realistic live demonstrations.
 2. Deterministic demo mode for stable fallback demonstrations.
 
 It also captures the production-readiness path from assignment prototype to operational service.
@@ -13,24 +13,23 @@ It also captures the production-readiness path from assignment prototype to oper
 
 Use this mode when you want to show authentic model behavior and full orchestration semantics.
 
-## OpenRouter Configuration
+## OpenAI Configuration
 
 Set `.env`:
 
 ```env
-MODEL_PROVIDER=openrouter
-OPENROUTER_API_KEY=<your_openrouter_key>
-OPENROUTER_MODEL=openai/gpt-4o-mini
+MODEL_PROVIDER=openai
+OPENAI_API_KEY=<your_openai_key>
+OPENAI_MODEL=gpt-4o-mini
 DEMO_MODE=false
 ```
 
-Important: provider model selection belongs in `OPENROUTER_MODEL`. Do not place a model id in `OPENROUTER_BASE_URL`.
+Important: provider model selection belongs in `OPENAI_MODEL`. Keep the API endpoint in `OPENAI_BASE_URL`.
 
-Optional metadata:
+Optional endpoint override:
 
 ```env
-OPENROUTER_SITE_URL=http://localhost:8000
-OPENROUTER_APP_NAME=agentic-sde-system
+OPENAI_BASE_URL=https://api.openai.com/v1
 ```
 
 Start runtime:
@@ -41,7 +40,7 @@ docker compose up -d --build orchestrator
 
 ## Real-Provider Operational Behavior
 
-- The orchestrator performs structured-output calls via OpenRouter.
+- The orchestrator performs structured-output calls via OpenAI.
 - If provider response parsing fails, schema-safe fallback is applied.
 - If provider request fails (for example quota/billing block), run completion still remains controlled.
 - Reviewer-facing summaries use sanitized, humanized failure text.

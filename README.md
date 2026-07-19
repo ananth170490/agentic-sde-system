@@ -130,21 +130,18 @@ The system demonstrates requirement analysis, decomposition, architecture planni
 
 Create `.env` in repo root.
 
-### OpenRouter (recommended for live demos)
+### OpenAI (recommended for live demos)
 
 ```env
-MODEL_PROVIDER=openrouter
-OPENROUTER_API_KEY=<your_openrouter_key>
-OPENROUTER_MODEL=anthropic/claude-3.5-sonnet
+MODEL_PROVIDER=openai
+OPENAI_API_KEY=<your_openai_key>
+OPENAI_MODEL=gpt-4o-mini
 ```
 
-Important: set the model in `OPENROUTER_MODEL` (not `OPENROUTER_BASE_URL`).
-
-Optional provider metadata:
+Optional provider endpoint override:
 
 ```env
-OPENROUTER_SITE_URL=http://localhost:8000
-OPENROUTER_APP_NAME=agentic-sde-system
+OPENAI_BASE_URL=https://api.openai.com/v1
 ```
 
 ### Other providers
@@ -282,7 +279,7 @@ The run executed the intake, planning, and DAG workflow with automated gating.
 - tests/unit/roleManager.test.js
 ```
 
-### Ambiguous Run Evidence (OpenRouter Quota/Provider Fallback)
+### Ambiguous Run Evidence (OpenAI Quota/Provider Fallback)
 
 - Run ID: `f64e1021-6402-4a2d-a3dd-f2bd098d1aad`
 - Status: `completed`

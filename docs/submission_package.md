@@ -11,7 +11,7 @@ This repository implements a stateful agentic software engineering orchestrator 
 - persistent run state and resumability
 - engineering-grade final summaries
 
-The implementation supports real-provider operation (OpenRouter), deterministic demo mode, and robust fallback behavior under provider-side failures.
+The implementation supports real-provider operation (OpenAI), deterministic demo mode, and robust fallback behavior under provider-side failures.
 
 ## Objective
 
@@ -76,14 +76,14 @@ Provide a complete, evaluator-ready mapping of implemented capabilities, runtime
 - persistence: `RunStateStore` in `orchestrator/state.py`
 - provider abstraction and fallback: `orchestrator/tools/model_provider.py`
 
-## OpenRouter Runtime Approach
+## OpenAI Runtime Approach
 
 Primary provider mode:
 
 ```env
-MODEL_PROVIDER=openrouter
-OPENROUTER_API_KEY=<your_openrouter_key>
-OPENROUTER_MODEL=anthropic/claude-3.5-sonnet
+MODEL_PROVIDER=openai
+OPENAI_API_KEY=<your_openai_key>
+OPENAI_MODEL=gpt-4o-mini
 DEMO_MODE=false
 ```
 

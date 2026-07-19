@@ -73,7 +73,7 @@ flowchart TD
 
 ## 4. Tooling Layer
 
-- Model provider abstraction: Anthropic, OpenRouter, Ollama, scripted
+- Model provider abstraction: Anthropic, OpenAI, Ollama, scripted
 - Sandbox runner for scoped test execution
 - Repo index for AST/import-based brownfield impact analysis
 
@@ -110,9 +110,9 @@ flowchart TD
 8. Final structured output
 - Final summaries include implementation rationale, artifacts, risks/trade-offs/validation, and limitations.
 
-## OpenRouter Integration Architecture
+## OpenAI Integration Architecture
 
-OpenRouter is integrated via an OpenAI-compatible chat completion client in `orchestrator/tools/model_provider.py`.
+OpenAI is integrated via a chat completion client in `orchestrator/tools/model_provider.py`.
 
 Primary behavior:
 
