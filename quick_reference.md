@@ -218,7 +218,9 @@ Submit requirement:
 ```bash
 curl -s -X POST http://127.0.0.1:8000/requirements \
   -H "Content-Type: application/json" \
-  -d '{"text":"Build a scalable URL shortener service with APIs, persistence, and analytics."}'
+  -d '{"text":"Build a scalable URL shortener service for the below URL
+
+https://www.amazon.in/VERVENIX-Quick-Dry-Anti-Slip-Water-Absorbing-Rectangular/dp/B0DV3M3FXD/?_encoding=UTF8&pd_rd_w=kdGPQ&content-id=amzn1.sym.3dfcdfa9-5b81-4b68-a3f1-b42adf3515e9&pf_rd_p=3dfcdfa9-5b81-4b68-a3f1-b42adf3515e9&pf_rd_r=SMNH9PG7MWM0M565P3ZX&pd_rd_wg=AJmc0&pd_rd_r=18752944-5ee8-4df9-818b-eb0747f58533&ref_=pd_hp_d_btf_cr_cartx&th=1"}'
 ```
 
 Get run state:
