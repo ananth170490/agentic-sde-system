@@ -4,6 +4,7 @@ import os
 import secrets
 
 from fastapi import FastAPI, HTTPException
+from fastapi.responses import RedirectResponse
 from pydantic import BaseModel, HttpUrl
 
 from app.analytics import AnalyticsService
@@ -42,12 +43,12 @@ def create_app(db_path: str | None = None) -> FastAPI:
         return ShortenResponse(code=code, short_url=f"/api/v1/{code}")
 
     @app.get("/api/v1/{code}")
-    def resolve(code: str) -> dict[str, str]:
+    def resolve(code: str) -> RedirectResponse:
         target = store.get_url(code)
         if target is None:
             raise HTTPException(status_code=404, detail="Short code not found")
         store.record_click(code)
-        return {"code": code, "target_url": target}
+        return RedirectResponse(url=target, status_code=307)
 
     @app.get("/api/v1/analytics/{code}")
     def analytics_endpoint(code: str) -> dict[str, int | str]:

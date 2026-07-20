@@ -399,8 +399,6 @@ class OrchestrationGraph:
 		except Exception as err:
 			state.risks = state.risks or [f"Risk documentation generation fallback triggered: {err}"]
 			state.final_summary = self._fallback_engineering_summary(state, str(err))
-		else:
-			state.final_summary = self._compose_engineering_summary(state, state.final_summary)
 		return self._persist(state)
 
 	def _compose_engineering_summary(self, state: RunState, model_summary: str | None = None) -> str:

@@ -8,10 +8,12 @@ from uuid import uuid4
 
 from fastapi import Depends, FastAPI, HTTPException
 from fastapi.responses import HTMLResponse
+from fastapi.responses import RedirectResponse
 from pydantic import BaseModel
 
 from orchestrator.graph import OrchestrationGraph
 from orchestrator.state import RequirementCategory, RequirementSpec, RunState, RunStateStore
+from orchestrator.tools.live_shortener import create_short_url, resolve_short_code
 from orchestrator.tools.model_provider import ModelProvider, build_model_provider_from_env
 
 
@@ -216,6 +218,10 @@ class RejectRequest(BaseModel):
 	reason: str
 
 
+class ShortenRequest(BaseModel):
+	target_url: str
+
+
 def get_store() -> RunStateStore:
 	return RunStateStore(sqlite_path=str((Path.cwd() / "orchestrator_runs.db").resolve()))
 
@@ -353,6 +359,20 @@ def reject_run(
 	state.review_payload = None
 	graph.store.save(state)
 	return {"run_id": state.run_id, "status": state.status, "reason": state.rejection_reason}
+
+
+@app.post("/demo/shorten")
+def demo_shorten(req: ShortenRequest):
+	code, short_url = create_short_url(req.target_url)
+	return {"code": code, "short_url": short_url}
+
+
+@app.get("/demo/{code}")
+def demo_resolve(code: str):
+	target = resolve_short_code(code)
+	if target is None:
+		raise HTTPException(status_code=404, detail="Short code not found")
+	return RedirectResponse(url=target, status_code=307)
 
 
 @app.get("/live-demo", include_in_schema=False)

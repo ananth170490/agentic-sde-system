@@ -1,0 +1,388 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Agentic SDE Live Demo Runner</title>
+  <style>
+    :root {
+      color-scheme: light;
+      --bg: #f4efe6;
+      --panel: #fffaf2;
+      --ink: #1d1b16;
+      --muted: #5d5648;
+      --line: #d8cdb9;
+      --accent: #0f766e;
+      --accent-2: #b45309;
+      --shadow: 0 18px 50px rgba(40, 28, 10, 0.10);
+      --radius: 20px;
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      font-family: ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      color: var(--ink);
+      background:
+        radial-gradient(circle at top left, rgba(180, 83, 9, 0.14), transparent 28%),
+        radial-gradient(circle at right 25%, rgba(15, 118, 110, 0.12), transparent 26%),
+        linear-gradient(180deg, #faf5eb 0%, #f5eee1 100%);
+      min-height: 100vh;
+      padding: 32px;
+    }
+    .shell {
+      max-width: 1200px;
+      margin: 0 auto;
+      display: grid;
+      gap: 18px;
+    }
+    .hero,
+    .card {
+      background: rgba(255, 250, 242, 0.92);
+      border: 1px solid rgba(216, 205, 185, 0.95);
+      box-shadow: var(--shadow);
+      border-radius: var(--radius);
+      backdrop-filter: blur(6px);
+    }
+    .hero {
+      padding: 28px 28px 24px;
+      display: grid;
+      gap: 10px;
+    }
+    .eyebrow {
+      text-transform: uppercase;
+      letter-spacing: 0.16em;
+      font-size: 12px;
+      color: var(--accent-2);
+      font-weight: 700;
+    }
+    h1 {
+      margin: 0;
+      font-size: clamp(28px, 4vw, 46px);
+      line-height: 1.05;
+      letter-spacing: -0.04em;
+    }
+    .subtle {
+      margin: 0;
+      color: var(--muted);
+      font-size: 15px;
+      max-width: 72ch;
+    }
+    .grid {
+      display: grid;
+      grid-template-columns: 1.1fr 0.9fr;
+      gap: 18px;
+      align-items: start;
+    }
+    .card {
+      padding: 20px;
+    }
+    label {
+      display: block;
+      font-size: 13px;
+      font-weight: 700;
+      margin-bottom: 8px;
+      color: #362f24;
+    }
+    textarea, input, button {
+      font: inherit;
+    }
+    textarea, input {
+      width: 100%;
+      border: 1px solid var(--line);
+      border-radius: 14px;
+      padding: 14px 16px;
+      background: #fffdf8;
+      color: var(--ink);
+      outline: none;
+      transition: border-color 0.15s ease, box-shadow 0.15s ease;
+    }
+    textarea:focus, input:focus {
+      border-color: rgba(15, 118, 110, 0.55);
+      box-shadow: 0 0 0 4px rgba(15, 118, 110, 0.10);
+    }
+    textarea {
+      min-height: 170px;
+      resize: vertical;
+      line-height: 1.45;
+    }
+    .row {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 14px;
+      margin-top: 14px;
+    }
+    .actions {
+      display: flex;
+      gap: 12px;
+      flex-wrap: wrap;
+      margin-top: 18px;
+      align-items: center;
+    }
+    button {
+      border: 0;
+      border-radius: 999px;
+      padding: 13px 18px;
+      font-weight: 700;
+      cursor: pointer;
+      transition: transform 0.12s ease, opacity 0.12s ease, box-shadow 0.12s ease;
+    }
+    button:hover { transform: translateY(-1px); }
+    button:disabled { opacity: 0.55; cursor: not-allowed; transform: none; }
+    .primary {
+      background: linear-gradient(135deg, var(--accent), #115e59);
+      color: white;
+      box-shadow: 0 12px 28px rgba(15, 118, 110, 0.25);
+    }
+    .secondary {
+      background: #f3ead7;
+      color: #4a3f2b;
+      border: 1px solid var(--line);
+    }
+    .statusbar {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px;
+      margin-top: 14px;
+      align-items: center;
+      color: var(--muted);
+      font-size: 14px;
+    }
+    .pill {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      border-radius: 999px;
+      padding: 8px 12px;
+      background: #fff;
+      border: 1px solid var(--line);
+      color: #3a3428;
+      font-size: 13px;
+    }
+    .pill strong { color: var(--ink); }
+    pre {
+      margin: 0;
+      white-space: pre-wrap;
+      word-break: break-word;
+      background: #111827;
+      color: #f8fafc;
+      border-radius: 16px;
+      padding: 16px;
+      min-height: 260px;
+      line-height: 1.4;
+      overflow: auto;
+      border: 1px solid rgba(255,255,255,0.07);
+    }
+    .section-title {
+      margin: 0 0 12px;
+      font-size: 16px;
+    }
+    .summary {
+      white-space: pre-wrap;
+      background: #fff;
+      border: 1px solid var(--line);
+      border-radius: 16px;
+      padding: 16px;
+      min-height: 180px;
+      line-height: 1.5;
+      color: #26221b;
+      overflow: auto;
+    }
+    .hint {
+      margin-top: 10px;
+      font-size: 13px;
+      color: var(--muted);
+    }
+    .badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      padding: 6px 10px;
+      border-radius: 999px;
+      background: rgba(15, 118, 110, 0.08);
+      color: var(--accent);
+      font-size: 12px;
+      font-weight: 700;
+      letter-spacing: 0.02em;
+    }
+    @media (max-width: 920px) {
+      body { padding: 18px; }
+      .grid { grid-template-columns: 1fr; }
+      .row { grid-template-columns: 1fr; }
+    }
+  </style>
+</head>
+<body>
+  <main class="shell">
+    <section class="hero">
+      <div class="eyebrow">Agentic SDE</div>
+      <h1>Live Demo Runner</h1>
+      <p class="subtle">Submit a requirement once, auto-advance through the human approval gates, and review the final engineering summary in one place.</p>
+    </section>
+
+    <section class="grid">
+      <div class="card">
+        <label for="requirement">Requirement</label>
+        <textarea id="requirement" spellcheck="false">Build a scalable URL shortener service</textarea>
+
+        <div class="row">
+          <div>
+            <label for="approveFeedback">Approve Feedback (optional)</label>
+            <input id="approveFeedback" value="approved" />
+          </div>
+          <div>
+            <label for="rejectReason">Reject Reason</label>
+            <input id="rejectReason" value="Rejected in live demo" />
+          </div>
+        </div>
+
+        <div class="actions">
+          <button id="runBtn" class="primary">Run Full Demo</button>
+          <button id="swaggerBtn" class="secondary">Open Swagger</button>
+          <span class="badge" id="runIdBadge">run_id: -</span>
+          <span class="badge" id="statusBadge">Idle</span>
+        </div>
+        <div class="hint">The UI auto-approves clarification, plan review, and merge review gates unless a rejection is triggered.</div>
+      </div>
+
+      <div class="card">
+        <h2 class="section-title">Execution Log</h2>
+        <pre id="log"></pre>
+      </div>
+    </section>
+
+    <section class="card">
+      <h2 class="section-title">Output Summary</h2>
+      <div class="summary" id="summary">Waiting for a run...</div>
+    </section>
+  </main>
+
+  <script>
+    const runBtn = document.getElementById('runBtn');
+    const swaggerBtn = document.getElementById('swaggerBtn');
+    const requirementEl = document.getElementById('requirement');
+    const approveFeedbackEl = document.getElementById('approveFeedback');
+    const rejectReasonEl = document.getElementById('rejectReason');
+    const logEl = document.getElementById('log');
+    const summaryEl = document.getElementById('summary');
+    const runIdBadge = document.getElementById('runIdBadge');
+    const statusBadge = document.getElementById('statusBadge');
+
+    let activeRunId = null;
+    let pollTimer = null;
+
+    function appendLog(line) {
+      const stamp = new Date().toLocaleTimeString();
+      logEl.textContent += `[${stamp}] ${line}\n`;
+      logEl.scrollTop = logEl.scrollHeight;
+    }
+
+    function setStatus(text) {
+      statusBadge.textContent = text;
+    }
+
+    async function jsonFetch(url, options = {}) {
+      const response = await fetch(url, {
+        headers: { 'Content-Type': 'application/json', ...(options.headers || {}) },
+        ...options,
+      });
+      let data = null;
+      try { data = await response.json(); } catch (_) {}
+      if (!response.ok) {
+        const detail = data && (data.detail || data.reason || JSON.stringify(data));
+        throw new Error(detail || `${response.status} ${response.statusText}`);
+      }
+      return data;
+    }
+
+    async function approveGate(runId, feedback) {
+      appendLog(`Submitting approval for ${runId}`);
+      return jsonFetch(`/runs/${runId}/approve`, {
+        method: 'POST',
+        body: JSON.stringify({ feedback }),
+      });
+    }
+
+    async function rejectGate(runId, reason) {
+      appendLog(`Submitting rejection for ${runId}`);
+      return jsonFetch(`/runs/${runId}/reject`, {
+        method: 'POST',
+        body: JSON.stringify({ reason }),
+      });
+    }
+
+    function renderRunState(state) {
+      runIdBadge.textContent = `run_id: ${state.run_id}`;
+      setStatus(state.status || 'unknown');
+      if (state.final_summary) {
+        summaryEl.textContent = state.final_summary;
+      }
+    }
+
+    async function pollRun(runId) {
+      if (pollTimer) clearTimeout(pollTimer);
+      try {
+        const state = await jsonFetch(`/runs/${runId}`);
+        renderRunState(state);
+
+        if (state.status === 'completed' || state.status === 'rejected') {
+          runBtn.disabled = false;
+          appendLog(`Run ${state.status}`);
+          return;
+        }
+
+        if (state.awaiting_human && state.review_payload) {
+          const review = typeof state.review_payload === 'string' ? JSON.parse(state.review_payload) : state.review_payload;
+          appendLog(`Human gate reached: ${review.phase || 'unknown phase'}`);
+          appendLog(`Auto-approving gate: ${review.phase || 'unknown phase'}`);
+          const feedback = approveFeedbackEl.value.trim() || 'approved';
+          const approved = await approveGate(runId, feedback);
+          if (approved.review_payload) {
+            appendLog(`Next gate ready: ${typeof approved.review_payload === 'string' ? approved.review_payload.slice(0, 160) : JSON.stringify(approved.review_payload).slice(0, 160)}`);
+          }
+        }
+      } catch (err) {
+        appendLog(`Polling error: ${err.message}`);
+      }
+
+      pollTimer = setTimeout(() => pollRun(runId), 1200);
+    }
+
+    runBtn.addEventListener('click', async () => {
+      const requirement = requirementEl.value.trim();
+      if (!requirement) {
+        summaryEl.textContent = 'Please enter a requirement before running the demo.';
+        return;
+      }
+
+      runBtn.disabled = true;
+      summaryEl.textContent = 'Running workflow...';
+      logEl.textContent = '';
+      runIdBadge.textContent = 'run_id: -';
+      setStatus('starting');
+
+      try {
+        const response = await jsonFetch('/requirements', {
+          method: 'POST',
+          body: JSON.stringify({ text: requirement }),
+        });
+        activeRunId = response.run_id;
+        appendLog(`Created run ${response.run_id}; initial status=${response.status}`);
+        renderRunState(response);
+        if (response.review_payload) {
+          appendLog(`Initial review payload: ${typeof response.review_payload === 'string' ? response.review_payload : JSON.stringify(response.review_payload)}`);
+        }
+        await pollRun(activeRunId);
+      } catch (err) {
+        appendLog(`Run failed to start: ${err.message}`);
+        summaryEl.textContent = `Run failed to start: ${err.message}`;
+        runBtn.disabled = false;
+        setStatus('error');
+      }
+    });
+
+    swaggerBtn.addEventListener('click', () => {
+      window.open('/docs', '_blank', 'noopener,noreferrer');
+    });
+  </script>
+</body>
+</html>

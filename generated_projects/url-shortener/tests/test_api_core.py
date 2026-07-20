@@ -13,9 +13,9 @@ def test_shorten_and_resolve(tmp_path: Path) -> None:
     assert create.status_code == 201
     code = create.json()["code"]
 
-    resolve = client.get(f"/api/v1/{code}")
-    assert resolve.status_code == 200
-    assert resolve.json()["target_url"] == "https://example.com/docs"
+    resolve = client.get(f"/api/v1/{code}", follow_redirects=False)
+    assert resolve.status_code == 307
+    assert resolve.headers["location"] == "https://example.com/docs"
 
 
 def test_resolve_missing_code(tmp_path: Path) -> None:

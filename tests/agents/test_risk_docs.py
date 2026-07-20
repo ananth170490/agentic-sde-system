@@ -60,6 +60,10 @@ def test_risk_docs_agent_writes_summary_and_contains_required_headers(tmp_path: 
 
     for header in REQUIRED_HEADERS:
         assert header in updated.final_summary
+    assert "Runnable service smoke test" in updated.final_summary
+    assert "POST /demo/shorten status=200" in updated.final_summary
+    assert "GET /demo/{code} status=307" in updated.final_summary
+    assert "Browser URL: http://localhost:8000/demo/" in updated.final_summary
 
     docs_file = Path("docs") / "engineering_summary_build-a-scalable-url-shortener-service-with-apis-persistence-and-analytics.md"
     assert docs_file.exists()
@@ -104,3 +108,4 @@ def test_risk_docs_agent_synthesizes_summary_when_headers_missing(tmp_path: Path
     assert "Design the architecture" in updated.final_summary
     assert "Generate code, APIs, and tests" in updated.final_summary
     assert "Provide trade-offs and a validation strategy" in updated.final_summary
+    assert "Runnable service smoke test" in updated.final_summary

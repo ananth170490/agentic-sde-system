@@ -160,7 +160,7 @@ def test_orchestration_graph_end_to_end_reaches_merge_gate(tmp_path: Path) -> No
     assert final_state.current_phase == "merge_approval_gate"
     assert all(task.status == TaskStatus.DONE for task in final_state.dag.tasks)
     assert final_state.final_summary is not None
-    assert "Analyze and decompose the requirement" in final_state.final_summary
-    assert "Design the architecture" in final_state.final_summary
-    assert "Generate code, APIs, and tests" in final_state.final_summary
-    assert "Provide trade-offs and a validation strategy" in final_state.final_summary
+    assert final_state.final_summary.count("## Implementation Plan and Rationale") == 1
+    assert final_state.final_summary.count("## Generated Artifacts") == 1
+    assert final_state.final_summary.count("## Risks, Trade-offs, and Validation Approach") == 1
+    assert "Runnable service smoke test" in final_state.final_summary

@@ -119,3 +119,19 @@ def test_live_demo_ui_served() -> None:
 
     assert response.status_code == 200
     assert "Live Demo Runner" in response.text
+
+
+def test_demo_shorten_and_resolve_redirect() -> None:
+    client = TestClient(app)
+    target = "https://example.com/redirect-target"
+
+    shorten = client.post("/demo/shorten", json={"target_url": target})
+    assert shorten.status_code == 200
+    payload = shorten.json()
+    assert payload["code"]
+    assert payload["short_url"].startswith("/demo/")
+
+    code = payload["code"]
+    resolve = client.get(f"/demo/{code}", follow_redirects=False)
+    assert resolve.status_code == 307
+    assert resolve.headers["location"] == target
