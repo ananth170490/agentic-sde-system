@@ -103,9 +103,9 @@ If you are new to the repo, read these files in order:
 6. `orchestrator/agents/intake.py`
 7. `tests/test_graph_integration.py`
 
-# Run and Evaluate Guide
+# Run and Evaluate Instructions
 
-This guide provides clear, repeatable steps to run and evaluate the Agentic SDE system.
+Below instructions provides clear, repeatable steps to run and evaluate the Agentic SDE system.
 
 ## 1. Prerequisites
 
